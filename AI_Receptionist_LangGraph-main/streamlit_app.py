@@ -1,19 +1,23 @@
 import streamlit as st
 import datetime
 import os
-import json
 import hashlib
 from dotenv import load_dotenv
 from caller_agent import run_agent
 from langchain_core.messages import HumanMessage, AIMessage
 import base64
 
-# ... existing imports ...
-from tools import register_visitor, check_availability_ml, generate_qr_code, book_appointment as agent_book_appointment
+# Database imports
+from database import get_session, init_db
+from models import User, Doctor, Appointment, DiseaseSpecialty, Visitor
+from tools import register_visitor, check_availability_ml, generate_qr_code
 from ml_utils import appointment_predictor
 
 # Load environment variables
 load_dotenv()
+
+# Initialize database
+init_db()
 
 st.set_page_config(
     page_title="AI Receptionist - Aura Health",
@@ -21,12 +25,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# File paths
-USER_DATABASE_FILE = "data/user_data.json"
-DOCTORS_DATABASE_FILE = "data/doctors.json"
-APPOINTMENTS_DATABASE_FILE = "data/appointments.json"
-DISEASE_SPECIALTIES_FILE = "data/disease_specialties.json"
 
 # --- Helper Functions ---
 def load_css():
@@ -56,16 +54,6 @@ def display_logo():
 # --- Database & Auth Helpers ---
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
-
-def load_json(file_path):
-    if os.path.exists(file_path):
-        with open(file_path, "r") as file:
-            return json.load(file)
-    return []
-
-def save_json(file_path, data):
-    with open(file_path, "w") as file:
-        json.dump(data, file, indent=4, default=str)
 
 # --- Session State Init ---
 if "chat_history" not in st.session_state:
@@ -122,19 +110,19 @@ def login_page():
             col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
             with col_btn2:
                 if st.button("🚀 Login", use_container_width=True):
-                    users = load_json(USER_DATABASE_FILE)
-                    # Assuming users is a dict in the file based on previous code
-                    if isinstance(users, list): 
-                        users = {u['email']: u for u in users}
-                    
-                    if email in users and users[email].get("password") == hash_password(password):
-                        st.session_state.authenticated = True
-                        st.session_state.user_email = email
-                        st.success("✅ Login successful! Redirecting...")
-                        st.balloons()
-                        st.rerun()
-                    else:
-                        st.error("❌ Invalid email or password.")
+                    session = get_session()
+                    try:
+                        user = session.query(User).filter_by(email=email).first()
+                        if user and user.password_hash == hash_password(password):
+                            st.session_state.authenticated = True
+                            st.session_state.user_email = email
+                            st.success("✅ Login successful! Redirecting...")
+                            st.balloons()
+                            st.rerun()
+                        else:
+                            st.error("❌ Invalid email or password.")
+                    finally:
+                        session.close()
             st.markdown("</div>", unsafe_allow_html=True)
         
         with tab2:
@@ -151,17 +139,22 @@ def login_page():
                     elif len(new_password) < 6:
                         st.warning("⚠️ Password must be at least 6 characters long.")
                     else:
-                        users = load_json(USER_DATABASE_FILE)
-                        if not isinstance(users, dict): 
-                            users = {}
-                        
-                        if new_email in users:
-                            st.error("❌ User already exists. Please login.")
-                        else:
-                            users[new_email] = {"password": hash_password(new_password)}
-                            save_json(USER_DATABASE_FILE, users)
-                            st.success("✅ Registration successful! Please login.")
-                            st.balloons()
+                        session = get_session()
+                        try:
+                            existing_user = session.query(User).filter_by(email=new_email).first()
+                            if existing_user:
+                                st.error("❌ User already exists. Please login.")
+                            else:
+                                new_user = User(email=new_email, password_hash=hash_password(new_password))
+                                session.add(new_user)
+                                session.commit()
+                                st.success("✅ Registration successful! Please login.")
+                                st.balloons()
+                        except Exception as e:
+                            session.rollback()
+                            st.error(f"❌ Registration failed: {e}")
+                        finally:
+                            session.close()
             st.markdown("</div>", unsafe_allow_html=True)
         
         # Footer
@@ -260,12 +253,16 @@ def visitor_checkin_page():
     
     # Recent check-ins
     with st.expander("📋 Recent Check-ins", expanded=False):
-        visitors = load_json("data/visitors.json") if os.path.exists("data/visitors.json") else []
-        if visitors:
-            for visitor in visitors[-5:]:  # Show last 5
-                st.markdown(f"**{visitor.get('name', 'Unknown')}** - {visitor.get('purpose', 'N/A')} - {visitor.get('timestamp', 'N/A')}")
-        else:
-            st.info("No recent check-ins")
+        session = get_session()
+        try:
+            visitors = session.query(Visitor).order_by(Visitor.check_in_time.desc()).limit(5).all()
+            if visitors:
+                for visitor in visitors:
+                    st.markdown(f"**{visitor.name}** - {visitor.purpose} - {visitor.check_in_time.strftime('%Y-%m-%d %H:%M')}")
+            else:
+                st.info("No recent check-ins")
+        finally:
+            session.close()
     
     st.markdown("---")
     
@@ -311,20 +308,26 @@ def manual_booking_page():
     
     # Show upcoming appointments
     with st.expander("📋 Your Upcoming Appointments", expanded=False):
-        appointments = load_json(APPOINTMENTS_DATABASE_FILE)
-        user_appointments = [apt for apt in appointments if apt.get("user") == st.session_state.user_email]
-        
-        if user_appointments:
-            for apt in user_appointments:
-                st.markdown(f"""
-                <div class="glass-card" style="margin: 8px 0; padding: 16px;">
-                    <strong>👨‍⚕️ Dr. {apt.get('doctor', 'Unknown')}</strong><br>
-                    <span style="color: var(--accent-color);">📅 {apt.get('time', 'N/A')}</span><br>
-                    🏥 {apt.get('disease', 'General Checkup')}
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.info("No upcoming appointments")
+        session = get_session()
+        try:
+            user_appointments = session.query(Appointment).filter(
+                Appointment.user_email == st.session_state.user_email,
+                Appointment.appointment_time >= datetime.datetime.now()
+            ).order_by(Appointment.appointment_time).all()
+            
+            if user_appointments:
+                for apt in user_appointments:
+                    st.markdown(f"""
+                    <div class="glass-card" style="margin: 8px 0; padding: 16px;">
+                        <strong>👨‍⚕️ Dr. {apt.doctor_name}</strong><br>
+                        <span style="color: var(--accent-color);">📅 {apt.appointment_time.strftime('%Y-%m-%d %H:%M')}</span><br>
+                        🏥 {apt.disease}
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("No upcoming appointments")
+        finally:
+            session.close()
     
     st.markdown("---")
     
@@ -346,8 +349,10 @@ def manual_booking_page():
     st.progress((current_step - 1) / len(progress_steps))
     st.markdown("---")
     
-    doctors = load_json(DOCTORS_DATABASE_FILE)
-    disease_specialties = load_json(DISEASE_SPECIALTIES_FILE)
+    session = get_session()
+    doctors = session.query(Doctor).all()
+    disease_specialties_list = session.query(DiseaseSpecialty).all()
+    disease_specialties = {ds.disease: ds.specialty for ds in disease_specialties_list}
     
     # Step 1: Select Condition
     if current_step == 1:
@@ -376,20 +381,19 @@ def manual_booking_page():
         
         disease = st.session_state.selected_disease
         specialty = disease_specialties.get(disease.lower())
-        available_doctors = [d["name"] for d in doctors if d.get("specialty") == specialty] if specialty else [d["name"] for d in doctors]
+        available_doctors = [d.name for d in doctors if d.specialty == specialty] if specialty else [d.name for d in doctors]
         
         if available_doctors:
             # Display doctors as cards
             cols = st.columns(2)
             for idx, doctor_name in enumerate(available_doctors):
-                doctor_info = next((d for d in doctors if d["name"] == doctor_name), {})
+                doctor_info = next((d for d in doctors if d.name == doctor_name), None)
                 with cols[idx % 2]:
                     with st.container():
                         st.markdown(f"""
                         <div class="glass-card hover-lift" style="border: 1px solid var(--border-light);">
                             <h4>👨‍⚕️ Dr. {doctor_name}</h4>
-                            <p><strong>Specialty:</strong> <span class="gradient-text">{doctor_info.get('specialty', 'General')}</span></p>
-                            <p><strong>Experience:</strong> {doctor_info.get('experience', 'N/A')} years</p>
+                            <p><strong>Specialty:</strong> <span class="gradient-text">{doctor_info.specialty if doctor_info else 'General'}</span></p>
                         </div>
                         """, unsafe_allow_html=True)
                         if st.button(f"Select Dr. {doctor_name}", key=f"select_{doctor_name}", use_container_width=True):
@@ -474,56 +478,75 @@ def manual_booking_page():
         
         with col_confirm:
             if st.button("🎉 Confirm Booking", use_container_width=True, type="primary"):
-                appointments = load_json(APPOINTMENTS_DATABASE_FILE)
-                
-                # Simple conflict check
-                conflict = any(datetime.datetime.fromisoformat(appt["time"]) == dt for appt in appointments)
-                
-                if conflict:
-                    st.error("❌ This slot is already booked. Please choose another time.")
-                else:
-                    appointments.append({
-                        "time": dt.isoformat(),
-                        "doctor": st.session_state.selected_doctor,
-                        "user": st.session_state.user_email,
-                        "disease": st.session_state.selected_disease
-                    })
-                    save_json(APPOINTMENTS_DATABASE_FILE, appointments)
+                booking_session = get_session()
+                try:
+                    # Simple conflict check
+                    conflict = booking_session.query(Appointment).filter(
+                        Appointment.appointment_time == dt
+                    ).first()
                     
-                    st.success(f"✅ Appointment confirmed with Dr. {st.session_state.selected_doctor}!")
-                    st.balloons()
+                    if conflict:
+                        st.error("❌ This slot is already booked. Please choose another time.")
+                    else:
+                        new_appointment = Appointment(
+                            user_email=st.session_state.user_email,
+                            doctor_name=st.session_state.selected_doctor,
+                            disease=st.session_state.selected_disease,
+                            appointment_time=dt
+                        )
+                        booking_session.add(new_appointment)
+                        booking_session.commit()
                     
-                    # QR Code Generation
-                    qr_msg = generate_qr_code(f"Appointment: Dr. {st.session_state.selected_doctor} @ {dt}")
-                    st.info(f"📱 {qr_msg}")
-                    
-                    # Reset booking flow
-                    st.session_state.booking_step = 1
-                    st.session_state.selected_disease = ""
-                    st.session_state.selected_doctor = ""
+                        st.success(f"✅ Appointment confirmed with Dr. {st.session_state.selected_doctor}!")
+                        st.balloons()
+                        
+                        # QR Code Generation
+                        qr_msg = generate_qr_code(f"Appointment: Dr. {st.session_state.selected_doctor} @ {dt}")
+                        st.info(f"📱 {qr_msg}")
+                        
+                        # Reset booking flow
+                        st.session_state.booking_step = 1
+                        st.session_state.selected_disease = ""
+                        st.session_state.selected_doctor = ""
+                except Exception as e:
+                    booking_session.rollback()
+                    st.error(f"❌ Booking failed: {e}")
+                finally:
+                    booking_session.close()
+    
+    session.close()
 
 # --- Sidebar Stats Dashboard ---
 def display_stats():
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 📊 Quick Stats")
     
-    # Load data
-    appointments = load_json(APPOINTMENTS_DATABASE_FILE)
-    doctors = load_json(DOCTORS_DATABASE_FILE)
-    
-    # User appointments
-    user_appointments = [apt for apt in appointments if apt.get("user") == st.session_state.user_email]
-    
-    col1, col2 = st.sidebar.columns(2)
-    with col1:
-        st.metric("Your Appointments", len(user_appointments))
-    with col2:
-        st.metric("Available Doctors", len(doctors))
-    
-    # Total appointments today
-    today = datetime.date.today().isoformat()
-    today_appointments = [apt for apt in appointments if apt.get("time", "").startswith(today)]
-    st.sidebar.metric("Today's Appointments", len(today_appointments))
+    session = get_session()
+    try:
+        # User appointments
+        user_appointments_count = session.query(Appointment).filter(
+            Appointment.user_email == st.session_state.user_email
+        ).count()
+        
+        # Total doctors
+        doctors_count = session.query(Doctor).count()
+        
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            st.metric("Your Appointments", user_appointments_count)
+        with col2:
+            st.metric("Available Doctors", doctors_count)
+        
+        # Total appointments today
+        today_start = datetime.datetime.combine(datetime.date.today(), datetime.time.min)
+        today_end = datetime.datetime.combine(datetime.date.today(), datetime.time.max)
+        today_appointments_count = session.query(Appointment).filter(
+            Appointment.appointment_time >= today_start,
+            Appointment.appointment_time <= today_end
+        ).count()
+        st.sidebar.metric("Today's Appointments", today_appointments_count)
+    finally:
+        session.close()
 
 # --- Main Layout ---
 def main():

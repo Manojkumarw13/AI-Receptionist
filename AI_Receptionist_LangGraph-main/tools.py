@@ -1,5 +1,4 @@
 import os
-import json
 import datetime
 import smtplib
 from email.mime.text import MIMEText
@@ -7,34 +6,19 @@ import logging
 from langchain_core.tools import tool
 import qrcode
 from ml_utils import appointment_predictor
+from database import get_session
+from models import Appointment, Visitor
+from sqlalchemy import and_
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
 
-# Path to the appointments JSON file
-APPOINTMENTS_FILE = "appointments.json"
-VISITORS_FILE = "visitors_log.json"
+# Path for images
 IMAGES_DIR = "static/images"
 
 if not os.path.exists(IMAGES_DIR):
     os.makedirs(IMAGES_DIR)
 
-# Function to load appointments from JSON
-def load_appointments():
-    """Load appointments from the JSON file."""
-    if os.path.exists(APPOINTMENTS_FILE):
-        with open(APPOINTMENTS_FILE, "r") as file:
-            return json.load(file)
-    return []
-
-# Function to save appointments to JSON
-def save_appointments(appointments):
-    """Save appointments to the JSON file."""
-    with open(APPOINTMENTS_FILE, "w") as file:
-        json.dump(appointments, file, indent=4, default=str)
-
-# Initialize appointments list
-APPOINTMENTS = load_appointments()
 
 # Function to send email notifications
 def send_email_notification(to_email, subject, message):
@@ -65,39 +49,48 @@ def send_email_notification(to_email, subject, message):
         logging.error(f"Failed to send email to {to_email}: {e}")
         # Not raising error to avoid breaking agent flow
 
+
 # Tool to get the next available appointment
 @tool
 def get_next_available_appointment():
     """Returns the next available appointment."""
-    current_time = datetime.datetime.now()
-    # Align to next 30 min slot
-    minutes_to_add = 30 - current_time.minute % 30
-    if minutes_to_add == 30: minutes_to_add = 0
-    
-    start_time = current_time + datetime.timedelta(minutes=minutes_to_add)
-    # Ensure seconds/microseconds are zero for cleaner matching
-    start_time = start_time.replace(second=0, microsecond=0)
-    
-    while True:
-        # Check simple slot availability
-        is_booked = any(datetime.datetime.fromisoformat(appt["time"]) == start_time for appt in APPOINTMENTS)
+    session = get_session()
+    try:
+        current_time = datetime.datetime.now()
+        # Align to next 30 min slot
+        minutes_to_add = 30 - current_time.minute % 30
+        if minutes_to_add == 30: 
+            minutes_to_add = 0
         
-        if not is_booked:
-            # Check ML prediction
-            is_optimal, message = appointment_predictor.predict_availability(
-                start_time.strftime("%Y-%m-%d"), 
-                start_time.strftime("%H:%M"), 
-                30
-            )
+        start_time = current_time + datetime.timedelta(minutes=minutes_to_add)
+        # Ensure seconds/microseconds are zero for cleaner matching
+        start_time = start_time.replace(second=0, microsecond=0)
+        
+        while True:
+            # Check if slot is booked in database
+            is_booked = session.query(Appointment).filter(
+                Appointment.appointment_time == start_time
+            ).first() is not None
             
-            if is_optimal:
-                logging.info(f"Next available appointment: {start_time}")
-                return f"One appointment available at {start_time}"
-            
-        start_time += datetime.timedelta(minutes=30)
-        # Limit search to avoid infinite loop
-        if (start_time - current_time).days > 7:
-             return "No appointments available in the next 7 days."
+            if not is_booked:
+                # Check ML prediction
+                is_optimal, message = appointment_predictor.predict_availability(
+                    start_time.strftime("%Y-%m-%d"), 
+                    start_time.strftime("%H:%M"), 
+                    30
+                )
+                
+                if is_optimal:
+                    logging.info(f"Next available appointment: {start_time}")
+                    return f"One appointment available at {start_time}"
+                
+            start_time += datetime.timedelta(minutes=30)
+            # Limit search to avoid infinite loop
+            if (start_time - current_time).days > 7:
+                return "No appointments available in the next 7 days."
+    finally:
+        session.close()
+
 
 @tool
 def check_availability_ml(date_str: str, time_str: str, duration: int = 30):
@@ -110,6 +103,7 @@ def check_availability_ml(date_str: str, time_str: str, duration: int = 30):
     """
     available, message = appointment_predictor.predict_availability(date_str, time_str, duration)
     return f"Availability Status: {'Optimal' if available else 'High Risk'}. Details: {message}"
+
 
 @tool
 def generate_qr_code(appointment_details: str):
@@ -131,6 +125,7 @@ def generate_qr_code(appointment_details: str):
     img.save(filepath)
     return f"QR Code generated at {filepath}"
 
+
 @tool
 def register_visitor(name: str, purpose: str, company: str, image_data: bytes = None):
     """
@@ -141,41 +136,40 @@ def register_visitor(name: str, purpose: str, company: str, image_data: bytes = 
         company: Company they represent
         image_data: (Optional) Bytes of the captured face image
     """
-    check_in_time = datetime.datetime.now()
-    image_path = ""
-    
-    if image_data:
-        filename = f"{name}_{check_in_time.strftime('%Y%m%d_%H%M%S')}.jpg"
-        image_path = os.path.join(IMAGES_DIR, filename)
-        try:
-            with open(image_path, "wb") as f:
-                f.write(image_data)
-        except Exception as e:
-            logging.error(f"Failed to save visitor image: {e}")
-
-    visitor_record = {
-        "name": name,
-        "company": company,
-        "purpose": purpose,
-        "check_in_time": check_in_time.isoformat(),
-        "image_path": image_path
-    }
-
-    # Load existing log
-    logs = []
-    if os.path.exists(VISITORS_FILE):
-        with open(VISITORS_FILE, 'r') as f:
-            try:
-                logs = json.load(f)
-            except:
-                pass
-    
-    logs.append(visitor_record)
-    
-    with open(VISITORS_FILE, 'w') as f:
-        json.dump(logs, f, indent=4)
+    session = get_session()
+    try:
+        check_in_time = datetime.datetime.now()
+        image_path = ""
         
-    return f"Visitor {name} registered successfully at {check_in_time}."
+        if image_data:
+            filename = f"{name}_{check_in_time.strftime('%Y%m%d_%H%M%S')}.jpg"
+            image_path = os.path.join(IMAGES_DIR, filename)
+            try:
+                with open(image_path, "wb") as f:
+                    f.write(image_data)
+            except Exception as e:
+                logging.error(f"Failed to save visitor image: {e}")
+
+        # Create visitor record in database
+        visitor = Visitor(
+            name=name,
+            purpose=purpose,
+            company=company,
+            check_in_time=check_in_time,
+            image_path=image_path if image_path else None
+        )
+        
+        session.add(visitor)
+        session.commit()
+        
+        logging.info(f"Visitor {name} registered at {check_in_time}")
+        return f"Visitor {name} registered successfully at {check_in_time}."
+    except Exception as e:
+        session.rollback()
+        logging.error(f"Failed to register visitor: {e}")
+        return f"Failed to register visitor: {e}"
+    finally:
+        session.close()
 
 
 # Tool to book an appointment
@@ -183,56 +177,83 @@ def register_visitor(name: str, purpose: str, company: str, image_data: bytes = 
 def book_appointment(appointment_year: int, appointment_month: int, appointment_day: int,
                      appointment_hour: int, appointment_minute: int, appointment_name: str):
     """Book an appointment at the specified time."""
-    time = datetime.datetime(appointment_year, appointment_month, appointment_day, 
-                             appointment_hour, appointment_minute)
-                             
-    # Check for conflicting appointments
-    for appointment in APPOINTMENTS:
-        if datetime.datetime.fromisoformat(appointment["time"]) == time:
+    session = get_session()
+    try:
+        time = datetime.datetime(appointment_year, appointment_month, appointment_day, 
+                                 appointment_hour, appointment_minute)
+                                 
+        # Check for conflicting appointments
+        existing = session.query(Appointment).filter(
+            Appointment.appointment_time == time
+        ).first()
+        
+        if existing:
             logging.warning(f"Attempt to book already booked slot: {time}")
             return f"Appointment at {time} is already booked"
-    
-    # Check ML Prediction
-    is_safe, msg = appointment_predictor.predict_availability(
-        time.strftime("%Y-%m-%d"), time.strftime("%H:%M"), 30
-    )
-    if not is_safe:
-        return f"Warning: {msg}. Do you still want to proceed?"
+        
+        # Check ML Prediction
+        is_safe, msg = appointment_predictor.predict_availability(
+            time.strftime("%Y-%m-%d"), time.strftime("%H:%M"), 30
+        )
+        if not is_safe:
+            return f"Warning: {msg}. Do you still want to proceed?"
 
-    # Add the appointment
-    new_appointment = {"time": time.isoformat(), "name": appointment_name}
-    APPOINTMENTS.append(new_appointment)
-    save_appointments(APPOINTMENTS)  # Save to JSON file
-    logging.info(f"Appointment booked: {time} with {appointment_name}")
-    
-    # Generate QR
-    qr_res = generate_qr_code(f"Appointment: {appointment_name} at {time}")
-    
-    # Send notifications
-    subject = "Appointment Confirmation"
-    message = f"Your appointment with {appointment_name} is booked for {time}. {qr_res}"
-    
-    try:
-        user_email = "user@example.com"  # Replace with dynamic user email retrieval
-        send_email_notification(user_email, subject, message)
-        logging.info(f"Confirmation email sent to user: {user_email}")
+        # Add the appointment to database
+        # Note: This simplified version uses appointment_name as both user_email and doctor_name
+        # In production, you'd want to pass these separately
+        new_appointment = Appointment(
+            user_email="user@example.com",  # Should be passed from session/context
+            doctor_name=appointment_name,
+            disease="general",  # Should be passed as parameter
+            appointment_time=time
+        )
+        
+        session.add(new_appointment)
+        session.commit()
+        
+        logging.info(f"Appointment booked: {time} with {appointment_name}")
+        
+        # Generate QR
+        qr_res = generate_qr_code(f"Appointment: {appointment_name} at {time}")
+        
+        # Send notifications
+        subject = "Appointment Confirmation"
+        message = f"Your appointment with {appointment_name} is booked for {time}. {qr_res}"
+        
+        try:
+            user_email = "user@example.com"  # Replace with dynamic user email retrieval
+            send_email_notification(user_email, subject, message)
+            logging.info(f"Confirmation email sent to user: {user_email}")
+        except Exception as e:
+            logging.error(f"Failed to send email notifications: {e}")
+            return f"Appointment booked, but email notification failed: {e}"
+        
+        return f"Appointment booked for {time}. {qr_res}"
     except Exception as e:
-        logging.error(f"Failed to send email notifications: {e}")
-        return f"Appointment booked, but email notification failed: {e}"
-    
-    return f"Appointment booked for {time}. {qr_res}"
+        session.rollback()
+        logging.error(f"Failed to book appointment: {e}")
+        return f"Failed to book appointment: {e}"
+    finally:
+        session.close()
+
 
 # Tool to cancel an appointment
 @tool
 def cancel_appointment(appointment_year: int, appointment_month: int, appointment_day: int,
                        appointment_hour: int, appointment_minute: int):
     """Cancel an appointment at the specified time."""
-    time = datetime.datetime(appointment_year, appointment_month, appointment_day,
-                             appointment_hour, appointment_minute)
-    for appointment in APPOINTMENTS:
-        if datetime.datetime.fromisoformat(appointment["time"]) == time:
-            APPOINTMENTS.remove(appointment)
-            save_appointments(APPOINTMENTS)  # Save to JSON file
+    session = get_session()
+    try:
+        time = datetime.datetime(appointment_year, appointment_month, appointment_day,
+                                 appointment_hour, appointment_minute)
+        
+        appointment = session.query(Appointment).filter(
+            Appointment.appointment_time == time
+        ).first()
+        
+        if appointment:
+            session.delete(appointment)
+            session.commit()
             logging.info(f"Appointment canceled: {time}")
             
             # Notify user
@@ -248,6 +269,12 @@ def cancel_appointment(appointment_year: int, appointment_month: int, appointmen
                 return f"Appointment canceled, but email notification failed: {e}"
             
             return f"Appointment at {time} cancelled"
-    
-    logging.warning(f"No appointment found to cancel at: {time}")
-    return f"No appointment found at {time}"
+        else:
+            logging.warning(f"No appointment found to cancel at: {time}")
+            return f"No appointment found at {time}"
+    except Exception as e:
+        session.rollback()
+        logging.error(f"Failed to cancel appointment: {e}")
+        return f"Failed to cancel appointment: {e}"
+    finally:
+        session.close()
