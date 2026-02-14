@@ -119,7 +119,7 @@ graph TB
 | **AI Agent**        | LangGraph + LangChain | Orchestrates conversational flow and tool execution               |
 | **LLM**             | Groq (LLaMA 3 70B)    | Natural language understanding and generation                     |
 | **ML Engine**       | Scikit-learn          | Predicts optimal appointment times                                |
-| **Data Storage**    | JSON Files            | Persistent storage for users, appointments, doctors               |
+| **Data Storage**    | SQLite + SQLAlchemy   | Persistent storage for users, appointments, doctors               |
 | **QR Generation**   | qrcode library        | Creates appointment confirmation QR codes                         |
 | **Computer Vision** | OpenCV                | Captures visitor photos during check-in                           |
 
@@ -181,7 +181,7 @@ graph TB
 | **AI/ML**           | LangGraph, LangChain, Groq API, Scikit-learn       |
 | **Frontend**        | Streamlit, Custom CSS                              |
 | **Backend**         | Python 3.8+                                        |
-| **Data**            | JSON, Pandas                                       |
+| **Data**            | SQLite, SQLAlchemy, Pandas                         |
 | **Computer Vision** | OpenCV                                             |
 | **Utilities**       | QR Code, python-dotenv, pyttsx3, SpeechRecognition |
 
@@ -201,6 +201,7 @@ scikit-learn
 qrcode
 pyttsx3
 SpeechRecognition
+sqlalchemy
 ```
 
 ---
@@ -274,15 +275,19 @@ EMAIL_ADDRESS=your_email@gmail.com
 EMAIL_PASSWORD=your_app_password
 ```
 
-### Data Files Configuration
+### Database Configuration
 
-The system uses JSON files for data persistence located in the `data/` directory:
+The system uses **SQLite database** with **SQLAlchemy ORM** for data persistence:
 
-- **`user_data.json`**: User accounts and authentication
-- **`doctors.json`**: Doctor profiles and specialties
-- **`appointments.json`**: Appointment records
-- **`disease_specialties.json`**: Disease to specialty mapping
-- **`visitors.json`**: Visitor check-in logs
+- **`receptionist.db`**: SQLite database file containing all application data
+- **Database Tables**:
+  - `users`: User accounts and authentication
+  - `doctors`: Doctor profiles and specialties
+  - `appointments`: Appointment records
+  - `disease_specialties`: Disease to specialty mapping
+  - `visitors`: Visitor check-in logs
+
+**Migration**: Use `migrate_json_to_db.py` to migrate from JSON files to database
 
 ### Customization
 
