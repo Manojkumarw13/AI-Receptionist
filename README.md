@@ -201,7 +201,8 @@ scikit-learn
 qrcode
 pyttsx3
 SpeechRecognition
-sqlalchemy
+sqlalchemy>=2.0.0
+plotly
 ```
 
 ---
@@ -289,6 +290,92 @@ The system uses **SQLite database** with **SQLAlchemy ORM** for data persistence
 
 **Migration**: Use `migrate_json_to_db.py` to migrate from JSON files to database
 
+### Star Schema Analytics Database
+
+The system includes a **star schema data warehouse** (`receptionist_star.db`) optimized for analytics and business intelligence:
+
+#### Star Schema Architecture
+
+```
+                    ┌─────────────────┐
+                    │   dim_date      │
+                    │  (1,096 rows)   │
+                    └────────┬────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+┌───────▼────────┐  ┌────────▼────────┐  ┌───────▼────────┐
+│   dim_time     │  │ fact_appointments│  │  dim_doctor    │
+│   (26 rows)    ├──┤   (500+ rows)   ├──┤   (60 rows)    │
+└────────────────┘  └────────┬────────┘  └────────────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+┌───────▼────────┐  ┌────────▼────────┐  ┌───────▼────────┐
+│   dim_user     │  │  dim_disease    │  │  dim_visitor   │
+│  (100 rows)    │  │   (60 rows)     │  │   (10 rows)    │
+└────────────────┘  └─────────────────┘  └────────────────┘
+```
+
+#### Dimension Tables
+
+| Table           | Description          | Key Attributes                                     |
+| --------------- | -------------------- | -------------------------------------------------- |
+| **dim_date**    | Calendar dimension   | year, quarter, month, day, is_weekend, is_holiday  |
+| **dim_time**    | Time slots           | hour, minute, time_slot, period, is_business_hours |
+| **dim_doctor**  | Doctor profiles      | name, specialty, experience, rating, fees          |
+| **dim_user**    | Patient demographics | email, age, gender, blood_group, city              |
+| **dim_disease** | Disease catalog      | disease_name, specialty, severity, ICD code        |
+| **dim_visitor** | Visitor profiles     | name, company, purpose, contact                    |
+
+#### Fact Tables
+
+| Table                     | Description              | Measures                               |
+| ------------------------- | ------------------------ | -------------------------------------- |
+| **fact_appointments**     | Appointment transactions | status, duration, fees, payment_status |
+| **fact_visitor_checkins** | Visitor check-ins        | checkin_time, checkout_time, duration  |
+
+#### Analytics Capabilities
+
+The star schema enables powerful analytics queries:
+
+- **Peak Hours Analysis**: Identify busiest appointment times
+- **Doctor Performance**: Track appointments, completion rates, revenue
+- **Disease Trends**: Monitor common conditions by season/time
+- **Patient Demographics**: Analyze age groups, locations, visit patterns
+- **Revenue Analysis**: Track income by specialty, doctor, time period
+- **Resource Utilization**: Optimize doctor schedules and availability
+
+#### Using the Analytics Dashboard
+
+Access the analytics dashboard from the navigation menu:
+
+```python
+# The dashboard provides:
+- 📊 Key metrics (total appointments, completion rate)
+- ⏰ Peak appointment hours visualization
+- 👨‍⚕️ Popular doctors ranking
+- 💰 Revenue breakdown by specialty
+- 🏥 Disease trend analysis
+- 👥 Patient demographics charts
+```
+
+#### Populating Star Schema
+
+```bash
+# Generate sample data for analytics
+python populate_star_schema.py
+```
+
+This creates:
+
+- 1,096 date records (2024-2026)
+- 26 time slots (30-minute intervals)
+- 60 doctors across 15 specialties
+- 100 sample patients
+- 60 diseases with ICD codes
+- 500+ appointment records
+
 ### Customization
 
 #### Change Logo or Background
@@ -350,6 +437,14 @@ The application will open in your default browser at `http://localhost:8501`
 - **Step 2**: Choose from recommended doctors
 - **Step 3**: Pick date and time (with ML-based suggestions)
 - **Step 4**: Confirm appointment details
+
+#### 5. **Analytics Dashboard Tab**
+
+- View comprehensive business intelligence reports
+- Analyze peak appointment hours
+- Track doctor performance and revenue
+- Monitor disease trends and patient demographics
+- Export data for further analysis
 
 ### Sample Interactions
 
