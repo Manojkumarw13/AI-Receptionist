@@ -13,3 +13,4 @@ qrcode
 pyttsx3
 SpeechRecognition
 sqlalchemy>=2.0.0
+plotly

@@ -583,7 +583,7 @@ def main():
             # Navigation with icons
             page = st.radio(
                 "Go to",
-                ["🤖 AI Assistant", "📸 Visitor Check-in", "📅 Manual Booking"],
+                ["🤖 AI Assistant", "📸 Visitor Check-in", "📅 Manual Booking", "📊 Analytics Dashboard"],
                 label_visibility="collapsed"
             )
             
@@ -606,6 +606,9 @@ def main():
             visitor_checkin_page()
         elif page == "📅 Manual Booking":
             manual_booking_page()
+        elif page == "📊 Analytics Dashboard":
+            from analytics_dashboard import show_analytics_dashboard
+            show_analytics_dashboard()
 
 if __name__ == "__main__":
     main()
