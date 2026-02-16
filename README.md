@@ -288,8 +288,6 @@ The system uses **SQLite database** with **SQLAlchemy ORM** for data persistence
   - `disease_specialties`: Disease to specialty mapping
   - `visitors`: Visitor check-in logs
 
-**Migration**: Use `migrate_json_to_db.py` to migrate from JSON files to database
-
 ### Star Schema Analytics Database
 
 The system includes a **star schema data warehouse** (`receptionist_star.db`) optimized for analytics and business intelligence:
@@ -381,14 +379,14 @@ This creates:
 #### Change Logo or Background
 
 ```python
-# Update paths in streamlit_app.py
-LOGO_PATH = "static/images/current/logo.png"
-BACKGROUND_PATH = "static/images/current/medical_technology.jpg"
+# Update paths in app.py
+LOGO_PATH = "assets/images/current/logo.png"
+BACKGROUND_PATH = "assets/images/current/medical_technology.jpg"
 ```
 
 #### Modify AI Behavior
 
-Edit the system prompt in `caller_agent.py`:
+Edit the system prompt in `agent/graph.py`:
 
 ```python
 caller_pa_prompt = """You are a smart AI Receptionist.
@@ -404,7 +402,7 @@ caller_pa_prompt = """You are a smart AI Receptionist.
 
 ```bash
 cd AI_Receptionist_LangGraph-main
-streamlit run streamlit_app.py
+streamlit run app.py
 ```
 
 The application will open in your default browser at `http://localhost:8501`
@@ -471,42 +469,47 @@ AI: "Let me check the availability... Yes, that slot is available
 ```
 AI_Receptionist_LangGraph-main/
 │
-├── 📄 Main Application Files
-│   ├── streamlit_app.py          # Main Streamlit application
-│   ├── caller_agent.py            # LangGraph agent for AI conversations
-│   ├── tools.py                   # Tool functions for agent
-│   ├── ml_utils.py                # Machine learning utilities
-│   ├── requirements.txt           # Python dependencies
-│   ├── .env                       # Environment variables (API keys)
-│   └── .gitignore                 # Git ignore rules
+├── 📄 app.py                      # Main App Entry Point (formerly streamlit_app.py)
 │
-├── 📁 data/                       # Data Files
-│   ├── appointments.json          # Appointment records
-│   ├── doctors.json               # Doctor information
-│   ├── user_data.json             # User accounts
-│   ├── disease_specialties.json   # Disease to specialty mapping
-│   └── visitors.json              # Visitor check-in records
+├── 📁 agent/                      # AI Agent Logic
+│   ├── graph.py                   # LangGraph Workflow (formerly caller_agent.py)
+│   └── tools.py                   # Agent Tools
 │
-├── 📁 static/                     # Static Assets
-│   ├── styles.css                 # Custom CSS styling
-│   └── images/                    # Images and logos
-│       ├── current/               # Active images
-│       ├── logos/                 # Logo options
-│       └── backgrounds/           # Background images
+├── 📁 database/                   # Database Layer
+│   ├── connection.py              # DB Connection & Config (formerly database.py)
+│   ├── models.py                  # Core DB Models
+│   └── models_star.py             # Analytics DB Models
 │
-└── 📁 screenshots/                # Application Screenshots
-    └── appointment_booked.png     # Demo screenshots
+├── 📁 ui/                         # UI Components
+│   └── dashboard.py               # Analytics Dashboard
+│
+├── 📁 utils/                      # Utilities
+│   └── ml_predictor.py            # ML Models & Utilities
+│
+├── 📁 scripts/                    # Helper Scripts
+│   ├── migrate_legacy.py          # Legacy Data Migration
+│   └── populate_data.py           # Test Data Generation
+│
+├── 📁 tests/                      # Tests
+│   └── test_star_schema.py        # Database Tests
+│
+├── 📁 assets/                     # Static Assets (Images, CSS)
+│   ├── styles.css
+│   └── images/
+│
+└── 📁 data/                       # Data Files
+    └── appointment_data.csv
 ```
 
 ### Key Files Explained
 
-| File               | Purpose                                         |
-| ------------------ | ----------------------------------------------- |
-| `streamlit_app.py` | Main application entry point with UI components |
-| `caller_agent.py`  | LangGraph workflow definition and agent logic   |
-| `tools.py`         | Decorated functions for appointment operations  |
-| `ml_utils.py`      | Machine learning models for time prediction     |
-| `requirements.txt` | Python package dependencies                     |
+| File                    | Purpose                                         |
+| ----------------------- | ----------------------------------------------- |
+| `app.py`                | Main application entry point with UI components |
+| `agent/graph.py`        | LangGraph workflow definition and agent logic   |
+| `agent/tools.py`        | Decorated functions for appointment operations  |
+| `utils/ml_predictor.py` | Machine learning models for time prediction     |
+| `requirements.txt`      | Python package dependencies                     |
 
 ---
 

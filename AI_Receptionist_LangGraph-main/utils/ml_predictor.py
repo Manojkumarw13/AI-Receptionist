@@ -10,7 +10,9 @@ logging.basicConfig(level=logging.INFO)
 
 class AppointmentPredictor:
     def __init__(self, data_file="appointment_data.csv"):
-        self.data_file = data_file
+        # Get absolute path to data file
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.data_file = os.path.join(BASE_DIR, "data", "appointment_data.csv")
         self.model = None
         self.is_trained = False
         self._train_model()

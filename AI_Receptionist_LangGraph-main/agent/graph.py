@@ -1,8 +1,12 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.graph import StateGraph, END, MessagesState
 import datetime
-from tools import book_appointment, get_next_available_appointment, cancel_appointment, check_availability_ml, generate_qr_code, register_visitor
-from langgraph.prebuilt import ToolNode
+from .tools import (
+    check_availability_ml, book_appointment, cancel_appointment,
+    get_next_available_appointment, generate_qr_code, register_visitor
+)
+from database.models import Doctor, DiseaseSpecialty
+from database.connection import get_session
 from langchain_core.messages import HumanMessage
 
 # Import ChatGroq instead of OpenAI

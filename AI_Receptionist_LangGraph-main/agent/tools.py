@@ -5,15 +5,14 @@ from email.mime.text import MIMEText
 import logging
 from langchain_core.tools import tool
 import qrcode
-from ml_utils import appointment_predictor
-from database import get_session
-from models import Appointment, Visitor
+from utils.ml_predictor import appointment_predictor
+from database.connection import get_session
+from database.models import Appointment, Visitor
 from sqlalchemy import and_
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
 
-# Path for images
 IMAGES_DIR = "static/images"
 
 if not os.path.exists(IMAGES_DIR):

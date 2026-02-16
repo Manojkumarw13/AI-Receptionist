@@ -15,12 +15,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Database file paths
-DATABASE_FILE = "receptionist.db"
-STAR_DATABASE_FILE = "receptionist_star.db"
+# Database setup
+# Get absolute path to project root (2 levels up from database/)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_path = os.path.join(BASE_DIR, "receptionist.db")
+STAR_DB_path = os.path.join(BASE_DIR, "receptionist_star.db")
 
-DATABASE_URL = f"sqlite:///{DATABASE_FILE}"
-STAR_DATABASE_URL = f"sqlite:///{STAR_DATABASE_FILE}"
+DATABASE_URL = f"sqlite:///{DB_path}"
+STAR_DATABASE_URL = f"sqlite:///{STAR_DB_path}"
 
 # Create engines
 engine = create_engine(
@@ -89,17 +91,17 @@ def close_session(session):
 
 def check_db_exists():
     """Check if the original database file exists."""
-    return os.path.exists(DATABASE_FILE)
+    return os.path.exists(DB_path)
 
 
 def check_star_db_exists():
     """Check if the star schema database file exists."""
-    return os.path.exists(STAR_DATABASE_FILE)
+    return os.path.exists(STAR_DB_path)
 
 
 def get_db_stats():
     """Get statistics about the original database."""
-    from models import User, Doctor, Appointment, DiseaseSpecialty, Visitor
+    from .models import Base, User, Doctor, Appointment, DiseaseSpecialty, Visitor
     
     session = get_session()
     try:
@@ -366,7 +368,7 @@ if __name__ == "__main__":
     # Initialize original database
     print("\n1. Initializing original database...")
     if init_db():
-        print(f"   ✓ Database initialized: {DATABASE_FILE}")
+        print(f"   ✓ Database initialized: {DB_path}")
         stats = get_db_stats()
         if any(stats.values()):
             print("   Statistics:")
@@ -378,7 +380,7 @@ if __name__ == "__main__":
     # Initialize star schema database
     print("\n2. Initializing star schema database...")
     if init_star_db():
-        print(f"   ✓ Star schema initialized: {STAR_DATABASE_FILE}")
+        print(f"   ✓ Star schema initialized: {STAR_DB_path}")
         stats = get_star_db_stats()
         if any(stats.values()):
             print("   Statistics:")

@@ -3,15 +3,16 @@ import datetime
 import os
 import hashlib
 from dotenv import load_dotenv
-from caller_agent import run_agent
 from langchain_core.messages import HumanMessage, AIMessage
 import base64
 
 # Database imports
-from database import get_session, init_db
-from models import User, Doctor, Appointment, DiseaseSpecialty, Visitor
-from tools import register_visitor, check_availability_ml, generate_qr_code
-from ml_utils import appointment_predictor
+from database.connection import init_db, check_db_exists, get_db_stats
+from database.models import User
+from agent.graph import app
+from agent.tools import register_visitor_tool
+from ui.dashboard import show_analytics_dashboard
+from utils.ml_predictor import appointment_predictor
 
 # Load environment variables
 load_dotenv()
@@ -26,13 +27,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Constants
+LOGO_PATH = "assets/images/current/logo.png"
+BACKGROUND_PATH = "assets/images/current/medical_technology.jpg"
+
 # --- Helper Functions ---
 def load_css():
     """Load custom CSS"""
-    css_file = "static/styles.css"
-    if os.path.exists(css_file):
-        with open(css_file) as f:
-            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    with open("assets/styles.css", "r") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 def get_base64_image(image_path):
     """Convert image to base64"""
@@ -43,13 +46,12 @@ def get_base64_image(image_path):
 
 def display_logo():
     """Display app logo with enhanced styling"""
-    logo_path = "static/images/current/logo.png"
-    if os.path.exists(logo_path):
+    if os.path.exists(LOGO_PATH):
         st.markdown("""
         <div class="logo-container">
             <img src="data:image/png;base64,{}" class="app-logo" alt="Aura Health Logo">
         </div>
-        """.format(get_base64_image(logo_path)), unsafe_allow_html=True)
+        """.format(get_base64_image(LOGO_PATH)), unsafe_allow_html=True)
 
 # --- Database & Auth Helpers ---
 def hash_password(password):
@@ -75,9 +77,8 @@ def login_page():
     load_css()
     
     # Background styling - using real medical image from Unsplash
-    bg_path = "static/images/current/medical_technology.jpg"
-    if os.path.exists(bg_path):
-        bg_base64 = get_base64_image(bg_path)
+    if os.path.exists(BACKGROUND_PATH):
+        bg_base64 = get_base64_image(BACKGROUND_PATH)
         st.markdown(f"""
         <style>
         .stApp {{

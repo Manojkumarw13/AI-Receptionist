@@ -8,16 +8,12 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from database import (
-    get_star_session,
-    get_peak_appointment_hours,
-    get_popular_doctors,
-    get_appointment_stats_by_status,
-    get_revenue_by_specialty
+from database.connection import (
+    get_star_session, get_star_db_stats,
+    get_peak_appointment_hours, get_popular_doctors,
+    get_appointment_stats_by_status, get_revenue_by_specialty
 )
-from models_star import (
-    FactAppointment, DimDate, DimTime, DimDoctor, DimUser, DimDisease
-)
+from database.models_star import DimDoctor, DimDisease, FactAppointment, DimTime, DimUser
 from sqlalchemy import func
 
 

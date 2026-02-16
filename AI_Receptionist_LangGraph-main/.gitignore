@@ -172,3 +172,13 @@ receptionist.db
 
 # Application data
 data/*.json.backup
+data/*.json
+*.json
+!package.json
+!tsconfig.json
+# Avoid tracking test data generation scripts
+populate_*.py
+migrate_*.py
+test_*.py
+scripts/
+PROJECT_STRUCTURE.md
