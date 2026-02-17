@@ -164,11 +164,22 @@ def login_page():
                     try:
                         user = session.query(User).filter_by(email=email).first()
                         if user and verify_password(password, user.password_hash):
-                            st.session_state.authenticated = True
-                            st.session_state.user_email = email
-                            st.success("✅ Login successful! Redirecting...")
-                            st.balloons()
-                            st.rerun()
+                            # Check if account is active
+                            if not user.is_active:
+                                st.error("❌ Account is deactivated. Please contact admin.")
+                            else:
+                                # Update last login
+                                user.last_login = datetime.datetime.now()
+                                session.commit()
+                                
+                                # Set session state
+                                st.session_state.authenticated = True
+                                st.session_state.user_email = email
+                                st.session_state.user_role = user.role
+                                st.session_state.user_name = user.name or email.split('@')[0]
+                                st.success("✅ Login successful! Redirecting...")
+                                st.balloons()
+                                st.rerun()
                         else:
                             st.error("❌ Invalid email or password.")
                     finally:
@@ -634,10 +645,16 @@ def main():
             st.markdown("---")
             st.markdown("### 🧭 Navigation")
             
-            # Navigation with icons
+            # Navigation with icons - conditional admin access
+            nav_options = ["🤖 AI Assistant", "📸 Visitor Check-in", "📅 Manual Booking", "📊 Analytics Dashboard", "📅 Calendar View"]
+            
+            # Add admin dashboard for admin users
+            if st.session_state.get('user_role') == 'admin':
+                nav_options.append("🔐 Admin Dashboard")
+            
             page = st.radio(
                 "Go to",
-                ["🤖 AI Assistant", "📸 Visitor Check-in", "📅 Manual Booking", "📊 Analytics Dashboard"],
+                nav_options,
                 label_visibility="collapsed"
             )
             
@@ -663,6 +680,12 @@ def main():
         elif page == "📊 Analytics Dashboard":
             from analytics_dashboard import show_analytics_dashboard
             show_analytics_dashboard()
+        elif page == "📅 Calendar View":
+            from ui.calendar_view import show_calendar_view
+            show_calendar_view()
+        elif page == "🔐 Admin Dashboard":
+            from ui.admin_dashboard import show_admin_dashboard
+            show_admin_dashboard()
 
 if __name__ == "__main__":
     main()

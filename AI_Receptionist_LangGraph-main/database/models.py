@@ -19,10 +19,14 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=True)  # User's full name
+    role = Column(String(20), default="user", nullable=False)  # user, admin, doctor
+    is_active = Column(Boolean, default=True, nullable=False)  # Account active status
     created_at = Column(DateTime, default=func.now(), nullable=False)
+    last_login = Column(DateTime, nullable=True)  # Track last login time
     
     def __repr__(self):
-        return f"<User(email='{self.email}')>"
+        return f"<User(email='{self.email}', role='{self.role}')>"
 
 
 class Doctor(Base):

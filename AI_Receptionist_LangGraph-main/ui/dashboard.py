@@ -9,11 +9,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from database.connection_star import get_session
-from database.queries import (
-    get_peak_appointment_hours, get_popular_doctors,
-    get_appointment_stats_by_status, get_revenue_by_specialty
-)
+from database.connection import get_session, get_star_session
+# from database.queries import (
+#     get_peak_appointment_hours, get_popular_doctors,
+#     get_appointment_stats_by_status, get_revenue_by_specialty
+# )
 from database.models_star import DimDoctor, DimDisease, FactAppointment, DimTime, DimUser
 from sqlalchemy import func
 from config import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
