@@ -8,7 +8,7 @@ from datetime import datetime, date, time as time_type
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.pool import StaticPool
-from models import Base
+from database.models import Base
 import logging
 
 # Configure logging
@@ -62,7 +62,7 @@ def init_db():
 def init_star_db():
     """Initialize the star schema database."""
     try:
-        from models_star import Base as StarBase
+        from database.models_star import Base as StarBase
         StarBase.metadata.create_all(bind=star_engine)
         logger.info("Star schema database tables created successfully")
         return True
@@ -123,7 +123,7 @@ def get_db_stats():
 def get_star_db_stats():
     """Get statistics about the star schema database."""
     try:
-        from models_star import (
+        from database.models_star import (
             DimDate, DimTime, DimDoctor, DimUser, DimDisease, DimVisitor,
             FactAppointment, FactVisitorCheckIn
         )
@@ -161,7 +161,7 @@ def get_or_create_date_dimension(session, target_date):
     Returns:
         DimDate: Date dimension record
     """
-    from models_star import DimDate
+    from database.models_star import DimDate
     
     # Check if date exists
     dim_date = session.query(DimDate).filter_by(full_date=target_date).first()
@@ -205,7 +205,7 @@ def get_or_create_time_dimension(session, target_time):
     Returns:
         DimTime: Time dimension record
     """
-    from models_star import DimTime
+    from database.models_star import DimTime
     
     # Check if time exists
     dim_time = session.query(DimTime).filter_by(time_value=target_time).first()
@@ -249,25 +249,25 @@ def get_or_create_time_dimension(session, target_time):
 
 def get_doctor_by_name(session, doctor_name):
     """Get doctor dimension by name."""
-    from models_star import DimDoctor
+    from database.models_star import DimDoctor
     return session.query(DimDoctor).filter_by(name=doctor_name).first()
 
 
 def get_user_by_email(session, email):
     """Get user dimension by email."""
-    from models_star import DimUser
+    from database.models_star import DimUser
     return session.query(DimUser).filter_by(email=email).first()
 
 
 def get_disease_by_name(session, disease_name):
     """Get disease dimension by name."""
-    from models_star import DimDisease
+    from database.models_star import DimDisease
     return session.query(DimDisease).filter_by(disease_name=disease_name).first()
 
 
 def get_visitor_by_name(session, visitor_name):
     """Get visitor dimension by name."""
-    from models_star import DimVisitor
+    from database.models_star import DimVisitor
     return session.query(DimVisitor).filter_by(name=visitor_name).first()
 
 
@@ -275,7 +275,7 @@ def get_visitor_by_name(session, visitor_name):
 
 def get_peak_appointment_hours(session, limit=10):
     """Get peak appointment hours from star schema."""
-    from models_star import FactAppointment, DimTime
+    from database.models_star import FactAppointment, DimTime
     
     results = session.query(
         DimTime.time_slot,
@@ -294,7 +294,7 @@ def get_peak_appointment_hours(session, limit=10):
 
 def get_popular_doctors(session, limit=10):
     """Get most popular doctors from star schema."""
-    from models_star import FactAppointment, DimDoctor
+    from database.models_star import FactAppointment, DimDoctor
     
     results = session.query(
         DimDoctor.name,
@@ -321,7 +321,7 @@ def get_popular_doctors(session, limit=10):
 
 def get_appointment_stats_by_status(session):
     """Get appointment statistics by status."""
-    from models_star import FactAppointment
+    from database.models_star import FactAppointment
     
     results = session.query(
         FactAppointment.status,
@@ -335,7 +335,7 @@ def get_appointment_stats_by_status(session):
 
 def get_revenue_by_specialty(session):
     """Get revenue breakdown by specialty."""
-    from models_star import FactAppointment, DimDoctor
+    from database.models_star import FactAppointment, DimDoctor
     
     results = session.query(
         DimDoctor.specialty,

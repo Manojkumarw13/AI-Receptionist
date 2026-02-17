@@ -1,21 +1,36 @@
 import streamlit as st
 import datetime
 import os
-import hashlib
+import bcrypt  # FIXED: Changed from hashlib to bcrypt
+import re  # FIXED: Added for email validation
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, AIMessage
 import base64
 
 # Database imports
-from database.connection import init_db, check_db_exists, get_db_stats
-from database.models import User
-from agent.graph import app
-from agent.tools import register_visitor_tool
+from database.connection import init_db, check_db_exists, get_db_stats, get_session
+from database.models import User, Visitor, Appointment, Doctor, DiseaseSpecialty
+from agent.graph import caller_app, run_agent
+from agent.tools import register_visitor, generate_qr_code
 from ui.dashboard import show_analytics_dashboard
 from utils.ml_predictor import appointment_predictor
 
 # Load environment variables
 load_dotenv()
+
+# FIXED Issue #16: Validate required environment variables
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+EMAIL = os.getenv("EMAIL")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+
+if not GROQ_API_KEY:
+    st.error("❌ CRITICAL: GROQ_API_KEY not set in .env file")
+    st.info("Please create a .env file with: GROQ_API_KEY=your_api_key")
+    st.stop()
+
+if not EMAIL or not EMAIL_PASSWORD:
+    st.warning("⚠️ Email credentials not configured. Email notifications will be disabled.")
+    st.info("To enable emails, add EMAIL and EMAIL_PASSWORD to .env file")
 
 # Initialize database
 init_db()
@@ -54,8 +69,42 @@ def display_logo():
         """.format(get_base64_image(LOGO_PATH)), unsafe_allow_html=True)
 
 # --- Database & Auth Helpers ---
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+def hash_password(password: str) -> str:
+    """Hash password using bcrypt with salt."""
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verify password against bcrypt hash."""
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def validate_email(email: str) -> bool:
+    """Validate email format."""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+def validate_password_strength(password: str) -> tuple[bool, str]:
+    """Validate password meets strength requirements.
+    
+    Args:
+        password: Password to validate
+    
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    # FIXED Issue #41: Use named constant
+    from config import MIN_PASSWORD_LENGTH
+    
+    if len(password) < MIN_PASSWORD_LENGTH:
+        return False, f"Password must be at least {MIN_PASSWORD_LENGTH} characters"
+    if not any(c.isupper() for c in password):
+        return False, "Password must contain at least one uppercase letter"
+    if not any(c.islower() for c in password):
+        return False, "Password must contain at least one lowercase letter"
+    if not any(c.isdigit() for c in password):
+        return False, "Password must contain at least one number"
+    return True, "Valid"
 
 # --- Session State Init ---
 if "chat_history" not in st.session_state:
@@ -114,7 +163,7 @@ def login_page():
                     session = get_session()
                     try:
                         user = session.query(User).filter_by(email=email).first()
-                        if user and user.password_hash == hash_password(password):
+                        if user and verify_password(password, user.password_hash):
                             st.session_state.authenticated = True
                             st.session_state.user_email = email
                             st.success("✅ Login successful! Redirecting...")
@@ -135,10 +184,14 @@ def login_page():
             col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
             with col_btn2:
                 if st.button("✨ Create Account", use_container_width=True):
-                    if new_password != confirm_password:
+                    # Validate email format
+                    if not validate_email(new_email):
+                        st.error("❌ Invalid email format")
+                    elif new_password != confirm_password:
                         st.error("❌ Passwords do not match!")
-                    elif len(new_password) < 6:
-                        st.warning("⚠️ Password must be at least 6 characters long.")
+                    # Validate password strength
+                    elif not (is_valid := validate_password_strength(new_password))[0]:
+                        st.error(f"❌ {is_valid[1]}")
                     else:
                         session = get_session()
                         try:

@@ -1,5 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.graph import StateGraph, END, MessagesState
+from langgraph.prebuilt import ToolNode
 import datetime
 from .tools import (
     check_availability_ml, book_appointment, cancel_appointment,

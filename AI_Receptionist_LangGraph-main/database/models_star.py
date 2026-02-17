@@ -85,7 +85,8 @@ class DimUser(Base):
     
     user_id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
+    # FIXED Issue #32: Removed password_hash - analytics DB should NOT store passwords
+    # password_hash = Column(String(255), nullable=False)  # REMOVED for security
     full_name = Column(String(255), nullable=False)
     phone = Column(String(20), nullable=True)
     age = Column(Integer, nullable=True)

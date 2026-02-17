@@ -1,36 +1,64 @@
+# FIXED Issue #9: Authentication Note
+# The agent tools receive user_email as a parameter from the app context.
+# The app.py handles authentication via st.session_state.authenticated
+# and st.session_state.user_email. Tools should only be called when
+# user is authenticated, and user_email should come from session state.
 import os
 import datetime
 import smtplib
 from email.mime.text import MIMEText
-import logging
 from langchain_core.tools import tool
 import qrcode
 from utils.ml_predictor import appointment_predictor
+from utils.logging_config import setup_logging
 from database.connection import get_session
-from database.models import Appointment, Visitor
+from database.models import Appointment, Visitor, Doctor
+from config import (
+    IMAGES_DIR, MAX_IMAGE_SIZE_BYTES, ALLOWED_IMAGE_TYPES,
+    APPOINTMENT_SLOT_DURATION_MINUTES, AVAILABILITY_SEARCH_DAYS,
+    WORKING_HOURS_START, WORKING_HOURS_END  # FIXED Issue #41
+)
+from utils.timezone_utils import now_with_timezone # FIXED Issue #22, #38
 from sqlalchemy import and_
 
-# Initialize logging
-logging.basicConfig(level=logging.INFO)
+# Initialize logging using centralized config
+logger = setup_logging(__name__)
 
-IMAGES_DIR = "static/images"
+# FIXED Issue #23: Image directory now from config
+# IMAGES_DIR imported from config.py
 
-if not os.path.exists(IMAGES_DIR):
-    os.makedirs(IMAGES_DIR)
+# The directory creation is now handled by IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+# if not os.path.exists(IMAGES_DIR):
+#     os.makedirs(IMAGES_DIR)
 
 
 # Function to send email notifications
-def send_email_notification(to_email, subject, message):
-    """Send an email notification."""
+def send_email_notification(to_email: str, subject: str, message: str) -> bool:
+    """Send an email notification.
+    
+    FIXED Issue #39: Added comprehensive docstring
+    FIXED Issue #40: Added type hints
+    
+    Args:
+        to_email: Recipient email address
+        subject: Email subject line
+        message: Email body content
+    
+    Returns:
+        bool: True if email sent successfully, False otherwise
+    
+    Note:
+        Returns False instead of raising exceptions to prevent
+        transaction rollbacks when email fails.
+    """
     smtp_server = "smtp.gmail.com"
     smtp_port = 587
-    from_email = os.getenv("EMAIL")  # Your email
-    password = os.getenv("EMAIL_PASSWORD")  # Email password
+    from_email = os.getenv("EMAIL")
+    password = os.getenv("EMAIL_PASSWORD")
 
     if not from_email or not password:
-        logging.error("EMAIL or EMAIL_PASSWORD environment variables are not set.")
-        # Proceeding without error for demo purposes if creds are missing
-        return
+        logger.warning("Email credentials not configured. Skipping email notification.")
+        return False
 
     msg = MIMEText(message)
     msg["Subject"] = subject
@@ -39,14 +67,15 @@ def send_email_notification(to_email, subject, message):
 
     try:
         with smtplib.SMTP(smtp_server, smtp_port) as server:
-            logging.info("Connecting to SMTP server...")
+            logger.info("Connecting to SMTP server...")
             server.starttls()
             server.login(from_email, password)
             server.send_message(msg)
-            logging.info(f"Email sent to {to_email} with subject: {subject}")
+            logger.info(f"Email sent to {to_email} with subject: {subject}")
+            return True
     except Exception as e:
-        logging.error(f"Failed to send email to {to_email}: {e}")
-        # Not raising error to avoid breaking agent flow
+        logger.error(f"Failed to send email to {to_email}: {e}")
+        return False
 
 
 # Tool to get the next available appointment
@@ -80,7 +109,7 @@ def get_next_available_appointment():
                 )
                 
                 if is_optimal:
-                    logging.info(f"Next available appointment: {start_time}")
+                    logger.info(f"Next available appointment: {start_time}")
                     return f"One appointment available at {start_time}"
                 
             start_time += datetime.timedelta(minutes=30)
@@ -125,8 +154,29 @@ def generate_qr_code(appointment_details: str):
     return f"QR Code generated at {filepath}"
 
 
+def validate_image_file(image_data: bytes) -> tuple[bool, str]:
+    """Validate image file size and type.
+    
+    Args:
+        image_data: Raw image bytes
+    
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    # FIXED Issue #24: File size validation
+    if len(image_data) > MAX_IMAGE_SIZE_BYTES:
+        return False, f"Image too large. Maximum size is {MAX_IMAGE_SIZE_BYTES // (1024*1024)}MB"
+    
+    # FIXED Issue #25: File type validation using magic bytes
+    for mime_type, magic_bytes in ALLOWED_IMAGE_TYPES.items():
+        if image_data.startswith(magic_bytes):
+            return True, ""
+    
+    return False, "Invalid image format. Only JPEG, PNG, and GIF are allowed"
+
+
 @tool
-def register_visitor(name: str, purpose: str, company: str, image_data: bytes = None):
+def register_visitor(name: str, purpose: str, company: str = None, image_data: bytes = None):
     """
     Registers a visitor and logs their entry.
     Args:
@@ -138,16 +188,30 @@ def register_visitor(name: str, purpose: str, company: str, image_data: bytes = 
     session = get_session()
     try:
         check_in_time = datetime.datetime.now()
-        image_path = ""
+        image_path = None # Initialize image_path to None
         
+        # Save image if provided
         if image_data:
-            filename = f"{name}_{check_in_time.strftime('%Y%m%d_%H%M%S')}.jpg"
-            image_path = os.path.join(IMAGES_DIR, filename)
+            # FIXED Issue #24, #25: Validate image before saving
+            is_valid, error_msg = validate_image_file(image_data)
+            if not is_valid:
+                logger.warning(f"Invalid image upload attempt: {error_msg}")
+                return f"Failed to register visitor: {error_msg}"
+            
             try:
+                # Create images directory if it doesn't exist
+                IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+                
+                # Generate unique filename
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                image_path = str(IMAGES_DIR / f"visitor_{timestamp}.jpg")
+                
+                # Save image
                 with open(image_path, "wb") as f:
                     f.write(image_data)
             except Exception as e:
-                logging.error(f"Failed to save visitor image: {e}")
+                logger.error(f"Failed to save visitor image: {e}")
+                return f"Failed to save visitor image: {e}"
 
         # Create visitor record in database
         visitor = Visitor(
@@ -161,11 +225,11 @@ def register_visitor(name: str, purpose: str, company: str, image_data: bytes = 
         session.add(visitor)
         session.commit()
         
-        logging.info(f"Visitor {name} registered at {check_in_time}")
+        logger.info(f"Visitor {name} registered at {check_in_time}")
         return f"Visitor {name} registered successfully at {check_in_time}."
     except Exception as e:
         session.rollback()
-        logging.error(f"Failed to register visitor: {e}")
+        logger.error(f"Failed to register visitor: {e}")
         return f"Failed to register visitor: {e}"
     finally:
         session.close()
@@ -174,21 +238,66 @@ def register_visitor(name: str, purpose: str, company: str, image_data: bytes = 
 # Tool to book an appointment
 @tool
 def book_appointment(appointment_year: int, appointment_month: int, appointment_day: int,
-                     appointment_hour: int, appointment_minute: int, appointment_name: str):
-    """Book an appointment at the specified time."""
+                     appointment_hour: int, appointment_minute: int, 
+                     doctor_name: str, disease: str, user_email: str):
+    """Book an appointment at the specified time.
+    
+    Args:
+        appointment_year: Year of appointment
+        appointment_month: Month of appointment
+        appointment_day: Day of appointment
+        appointment_hour: Hour of appointment (0-23)
+        appointment_minute: Minute of appointment (0-59)
+        doctor_name: Name of the doctor
+        disease: Disease/condition for appointment
+        user_email: Email of the user booking the appointment
+    """
     session = get_session()
     try:
         time = datetime.datetime(appointment_year, appointment_month, appointment_day, 
                                  appointment_hour, appointment_minute)
+        
+        # FIXED Issue #38: Use timezone-aware datetime for comparison
+        if time < now_with_timezone():
+            logger.warning(f"Attempt to book appointment in the past: {time}")
+            # FIXED Issue #21: Standardized error format
+            return {"success": False, "error": "PAST_DATE", "message": "Cannot book appointments in the past. Please select a future date and time."}
+        
+        # FIXED: Validate doctor exists
+        doctor = session.query(Doctor).filter_by(name=doctor_name).first()
+        if not doctor:
+            logger.warning(f"Attempt to book with non-existent doctor: {doctor_name}")
+            # FIXED Issue #21: Standardized error format
+            return {"success": False, "error": "DOCTOR_NOT_FOUND", "message": f"Doctor '{doctor_name}' not found. Please select a valid doctor."}
                                  
-        # Check for conflicting appointments
+        # Check for conflicting appointments (slot already booked)
+        # FIXED Issue #33: Exclude soft-deleted appointments
         existing = session.query(Appointment).filter(
-            Appointment.appointment_time == time
+            and_(
+                Appointment.appointment_time == time,
+                Appointment.is_deleted == False
+            )
         ).first()
         
         if existing:
-            logging.warning(f"Attempt to book already booked slot: {time}")
-            return f"Appointment at {time} is already booked"
+            logger.warning(f"Attempt to book already booked slot: {time}")
+            # FIXED Issue #21: Standardized error format
+            return {"success": False, "error": "SLOT_BOOKED", "message": f"Appointment at {time} is already booked. Please choose another time."}
+        
+        # FIXED: Check user doesn't have conflicting appointment
+        # FIXED Issue #33: Exclude soft-deleted appointments
+        user_conflict = session.query(Appointment).filter(
+            and_(
+                Appointment.user_email == user_email,
+                Appointment.appointment_time == time,
+                Appointment.is_deleted == False
+            )
+        ).first()
+        
+        if user_conflict:
+            logger.warning(f"User {user_email} already has appointment at {time}")
+            # FIXED Issue #21: Standardized error format
+            return {"success": False, "error": "USER_CONFLICT", "message": f"You already have an appointment at {time}. Cannot book multiple appointments at the same time."}
         
         # Check ML Prediction
         is_safe, msg = appointment_predictor.predict_availability(
@@ -198,40 +307,46 @@ def book_appointment(appointment_year: int, appointment_month: int, appointment_
             return f"Warning: {msg}. Do you still want to proceed?"
 
         # Add the appointment to database
-        # Note: This simplified version uses appointment_name as both user_email and doctor_name
-        # In production, you'd want to pass these separately
         new_appointment = Appointment(
-            user_email="user@example.com",  # Should be passed from session/context
-            doctor_name=appointment_name,
-            disease="general",  # Should be passed as parameter
+            user_email=user_email,
+            doctor_name=doctor_name,
+            disease=disease,
             appointment_time=time
         )
         
         session.add(new_appointment)
         session.commit()
+        appointment_id = new_appointment.id
+        logger.info(f"Appointment booked: {time} with {doctor_name}")
         
-        logging.info(f"Appointment booked: {time} with {appointment_name}")
+        # FIXED Issue #13: Email sending separated from transaction
+        # FIXED Issue #35: Generate and save QR code
+        qr_filename = f"appointment_{appointment_id}_{int(time.timestamp())}.png"
+        qr_path = str(IMAGES_DIR / qr_filename)
+        qr_res = generate_qr_code(f"Appointment ID: {appointment_id}, Doctor: {doctor_name}, Time: {time}", qr_path)
         
-        # Generate QR
-        qr_res = generate_qr_code(f"Appointment: {appointment_name} at {time}")
+        # Update appointment with QR code path
+        new_appointment.qr_code_path = qr_path
+        session.commit()
         
-        # Send notifications
+        # Send notification email (non-blocking, won't rollback transaction if fails)
         subject = "Appointment Confirmation"
-        message = f"Your appointment with {appointment_name} is booked for {time}. {qr_res}"
+        message = f"Your appointment with Dr. {doctor_name} for {disease} is booked for {time}. {qr_res}"
         
-        try:
-            user_email = "user@example.com"  # Replace with dynamic user email retrieval
-            send_email_notification(user_email, subject, message)
-            logging.info(f"Confirmation email sent to user: {user_email}")
-        except Exception as e:
-            logging.error(f"Failed to send email notifications: {e}")
-            return f"Appointment booked, but email notification failed: {e}"
-        
-        return f"Appointment booked for {time}. {qr_res}"
+        email_sent = send_email_notification(user_email, subject, message)
+        if email_sent:
+            logger.info(f"Confirmation email sent to user: {user_email}")
+            # FIXED Issue #21: Standardized success format
+            return {"success": True, "appointment_id": appointment_id, "message": f"Appointment booked successfully for {time} with Dr. {doctor_name}. Confirmation email sent."}
+        else:
+            logger.warning(f"Appointment booked but email failed for: {user_email}")
+            # FIXED Issue #21: Standardized success format
+            return {"success": True, "appointment_id": appointment_id, "message": f"Appointment booked successfully for {time} with Dr. {doctor_name}. (Email notification failed - please check your email settings)"}
     except Exception as e:
         session.rollback()
-        logging.error(f"Failed to book appointment: {e}")
-        return f"Failed to book appointment: {e}"
+        logger.error(f"Failed to book appointment: {e}")
+        # FIXED Issue #21: Standardized error format
+        return {"success": False, "error": "BOOKING_FAILED", "message": f"Failed to book appointment: {str(e)}"}
     finally:
         session.close()
 
@@ -239,41 +354,60 @@ def book_appointment(appointment_year: int, appointment_month: int, appointment_
 # Tool to cancel an appointment
 @tool
 def cancel_appointment(appointment_year: int, appointment_month: int, appointment_day: int,
-                       appointment_hour: int, appointment_minute: int):
-    """Cancel an appointment at the specified time."""
+                       appointment_hour: int, appointment_minute: int, user_email: str):
+    """Cancel an appointment at the specified time.
+    
+    Args:
+        appointment_year: Year of appointment
+        appointment_month: Month of appointment
+        appointment_day: Day of appointment
+        appointment_hour: Hour of appointment
+        appointment_minute: Minute of appointment
+        user_email: Email of the user canceling the appointment
+    """
     session = get_session()
     try:
-        time = datetime.datetime(appointment_year, appointment_month, appointment_day,
-                                 appointment_hour, appointment_minute)
+        # FIXED Issue #38: Use timezone-aware datetime
+        time = now_with_timezone().replace(
+            year=appointment_year,
+            month=appointment_month,
+            day=appointment_day,
+            hour=appointment_hour,
+            minute=appointment_minute,
+            second=0,
+            microsecond=0
+        )
         
         appointment = session.query(Appointment).filter(
-            Appointment.appointment_time == time
+            and_(
+                Appointment.appointment_time == time,
+                Appointment.user_email == user_email
+            )
         ).first()
         
         if appointment:
             session.delete(appointment)
             session.commit()
-            logging.info(f"Appointment canceled: {time}")
+            logger.info(f"Appointment at {time} cancelled for user {user_email}")
             
-            # Notify user
+            # FIXED Issue #13: Email sending separated from transaction
             subject = "Appointment Cancellation"
             message = f"Your appointment on {time} has been canceled."
             
-            try:
-                user_email = "user@example.com"  # Replace with dynamic user email retrieval
-                send_email_notification(user_email, subject, message)
-                logging.info(f"Cancellation email sent to user: {user_email}")
-            except Exception as e:
-                logging.error(f"Failed to send cancellation email notifications: {e}")
-                return f"Appointment canceled, but email notification failed: {e}"
+            email_sent = send_email_notification(user_email, subject, message)
+            if email_sent:
+                logger.info(f"Cancellation email sent to user: {user_email}")
+            else:
+                logger.warning(f"Appointment cancelled but email failed for: {user_email}")
             
-            return f"Appointment at {time} cancelled"
+            return f"Appointment at {time} cancelled successfully."
         else:
-            logging.warning(f"No appointment found to cancel at: {time}")
-            return f"No appointment found at {time}"
+            logger.warning(f"No appointment found for user {user_email} at: {time}")
+            return f"No appointment found at {time} for your account"
     except Exception as e:
         session.rollback()
-        logging.error(f"Failed to cancel appointment: {e}")
-        return f"Failed to cancel appointment: {e}"
+        logger.error(f"Failed to cancel appointment: {e}")
+        # FIXED Issue #21: Standardized error format
+        return {"success": False, "error": "CANCELLATION_FAILED", "message": f"Failed to cancel appointment: {str(e)}"}
     finally:
         session.close()

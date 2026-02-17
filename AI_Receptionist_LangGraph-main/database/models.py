@@ -3,8 +3,9 @@ Database models for AI Receptionist application.
 Defines SQLAlchemy ORM models for all entities.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Index
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Index, Boolean  # FIXED: Added Boolean
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship  # FIXED Issue #34: Added relationship
 from sqlalchemy.sql import func
 from datetime import datetime
 
@@ -50,12 +51,19 @@ class Appointment(Base):
     doctor_name = Column(String(255), nullable=False)
     disease = Column(String(255), nullable=False)
     appointment_time = Column(DateTime, nullable=False, index=True)
+    status = Column(String(50), default='Scheduled', nullable=False)  # FIXED Issue #36: Added status field
+    is_deleted = Column(Boolean, default=False, nullable=False)  # FIXED Issue #33: Soft delete support
+    qr_code_path = Column(String(500), nullable=True)  # FIXED Issue #35: Track QR codes
     created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())  # Track updates
     
     # Create composite index for faster user-based and time-based queries
+    # FIXED Issue #18: Added standalone time index for better performance
     __table_args__ = (
         Index('idx_user_time', 'user_email', 'appointment_time'),
         Index('idx_doctor_time', 'doctor_name', 'appointment_time'),
+        Index('idx_appointment_time', 'appointment_time'),  # Standalone time index
+        Index('idx_status', 'status'),  # Index for status queries
     )
     
     def __repr__(self):

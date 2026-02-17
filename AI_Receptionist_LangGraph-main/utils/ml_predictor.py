@@ -20,7 +20,11 @@ class AppointmentPredictor:
     def _train_model(self):
         """Trains the Random Forest model on initialization."""
         if not os.path.exists(self.data_file):
-            logging.warning(f"Data file {self.data_file} not found. functionality will be limited.")
+            # FIXED: Better error handling and logging
+            logging.error(f"CRITICAL: Data file {self.data_file} not found!")
+            logging.error("ML predictions will default to 'available' - model not trained")
+            logging.error(f"Expected file location: {self.data_file}")
+            logging.warning("To enable ML predictions, create the data file with appointment history")
             return
 
         try:
@@ -43,7 +47,10 @@ class AppointmentPredictor:
             logging.info("Appointment Prediction Model trained successfully.")
             
         except Exception as e:
-            logging.error(f"Failed to train model: {e}")
+            # FIXED: Better error handling
+            logging.error(f"CRITICAL: Failed to train ML model: {e}")
+            logging.error("ML predictions will default to 'available'")
+            self.is_trained = False
 
     def predict_availability(self, date_str, time_str, duration):
         """
