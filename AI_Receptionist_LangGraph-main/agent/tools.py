@@ -9,6 +9,7 @@ import smtplib
 from email.mime.text import MIMEText
 from langchain_core.tools import tool
 import qrcode
+import html  # FIXED Issue #59: For input sanitization
 from utils.ml_predictor import appointment_predictor
 from utils.logging_config import setup_logging
 from database.connection import get_session
@@ -16,10 +17,13 @@ from database.models import Appointment, Visitor, Doctor
 from config import (
     IMAGES_DIR, MAX_IMAGE_SIZE_BYTES, ALLOWED_IMAGE_TYPES,
     APPOINTMENT_SLOT_DURATION_MINUTES, AVAILABILITY_SEARCH_DAYS,
-    WORKING_HOURS_START, WORKING_HOURS_END  # FIXED Issue #41
+    WORKING_HOURS_START, WORKING_HOURS_END,  # FIXED Issue #41
+    SMTP_SERVER, SMTP_PORT  # FIXED Issue #56
 )
-from utils.timezone_utils import now_with_timezone # FIXED Issue #22, #38
+from utils.timezone_utils import now_with_timezone, get_timezone  # FIXED Issue #22, #38, #48
 from sqlalchemy import and_
+import time as time_module  # FIXED Issue #50: For timestamp generation
+from pathlib import Path  # FIXED Issue #58: For directory validation
 
 # Initialize logging using centralized config
 logger = setup_logging(__name__)
@@ -30,6 +34,21 @@ logger = setup_logging(__name__)
 # The directory creation is now handled by IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 # if not os.path.exists(IMAGES_DIR):
 #     os.makedirs(IMAGES_DIR)
+
+
+# FIXED Issue #59: Input sanitization helper
+def sanitize_input(text: str) -> str:
+    """Sanitize user input to prevent XSS attacks.
+    
+    Args:
+        text: User input string to sanitize
+    
+    Returns:
+        str: HTML-escaped and trimmed string
+    """
+    if not text:
+        return text
+    return html.escape(text.strip())
 
 
 # Function to send email notifications
@@ -51,8 +70,9 @@ def send_email_notification(to_email: str, subject: str, message: str) -> bool:
         Returns False instead of raising exceptions to prevent
         transaction rollbacks when email fails.
     """
-    smtp_server = "smtp.gmail.com"
-    smtp_port = 587
+    # FIXED Issue #56: Use SMTP config constants
+    smtp_server = SMTP_SERVER
+    smtp_port = SMTP_PORT
     from_email = os.getenv("EMAIL")
     password = os.getenv("EMAIL_PASSWORD")
 
@@ -81,7 +101,10 @@ def send_email_notification(to_email: str, subject: str, message: str) -> bool:
 # Tool to get the next available appointment
 @tool
 def get_next_available_appointment():
-    """Returns the next available appointment."""
+    """Returns the next available appointment.
+    
+    FIXED Issue #52: Standardized to return dict format
+    """
     session = get_session()
     try:
         current_time = datetime.datetime.now()
@@ -110,13 +133,24 @@ def get_next_available_appointment():
                 
                 if is_optimal:
                     logger.info(f"Next available appointment: {start_time}")
-                    return f"One appointment available at {start_time}"
+                    # FIXED Issue #52: Return dict instead of string
+                    return {
+                        "success": True,
+                        "appointment_time": start_time.strftime("%Y-%m-%d %H:%M"),
+                        "message": f"One appointment available at {start_time}"
+                    }
                 
             start_time += datetime.timedelta(minutes=30)
             # Limit search to avoid infinite loop
             if (start_time - current_time).days > 7:
-                return "No appointments available in the next 7 days."
+                # FIXED Issue #52: Return dict instead of string
+                return {
+                    "success": False,
+                    "error": "NO_AVAILABILITY",
+                    "message": "No appointments available in the next 7 days."
+                }
     finally:
+        # FIXED Issue #49: Always cleanup session
         session.close()
 
 
@@ -134,24 +168,48 @@ def check_availability_ml(date_str: str, time_str: str, duration: int = 30):
 
 
 @tool
-def generate_qr_code(appointment_details: str):
-    """Generates a QR code for the appointment details."""
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(appointment_details)
-    qr.make(fit=True)
-
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"qr_{timestamp}.png"
-    filepath = os.path.join(IMAGES_DIR, filename)
+def generate_qr_code(appointment_details: str, filepath: str = None):
+    """Generates a QR code for the appointment details.
     
-    img = qr.make_image(fill_color="black", back_color="white")
-    img.save(filepath)
-    return f"QR Code generated at {filepath}"
+    FIXED Issue #58: Added path validation and error handling
+    FIXED Issue #57: Added comprehensive logging
+    
+    Args:
+        appointment_details: Data to encode in QR code
+        filepath: Optional custom filepath for QR code
+    
+    Returns:
+        str: Success/error message
+    """
+    try:
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(appointment_details)
+        qr.make(fit=True)
+
+        # Generate filepath if not provided
+        if not filepath:
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"qr_{timestamp}.png"
+            filepath = str(IMAGES_DIR / filename)
+        
+        # FIXED Issue #58: Ensure directory exists
+        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        img.save(filepath)
+        
+        # FIXED Issue #57: Log successful operation
+        logger.info(f"QR code generated successfully at {filepath}")
+        return f"QR Code generated at {filepath}"
+    except Exception as e:
+        # FIXED Issue #58: Proper error handling
+        logger.error(f"Failed to generate QR code: {e}")
+        return f"Failed to generate QR code: {e}"
 
 
 def validate_image_file(image_data: bytes) -> tuple[bool, str]:
@@ -179,6 +237,10 @@ def validate_image_file(image_data: bytes) -> tuple[bool, str]:
 def register_visitor(name: str, purpose: str, company: str = None, image_data: bytes = None):
     """
     Registers a visitor and logs their entry.
+    
+    FIXED Issue #59: Added input sanitization
+    FIXED Issue #57: Added comprehensive logging
+    
     Args:
         name: Name of visitor
         purpose: Purpose of visit
@@ -187,8 +249,13 @@ def register_visitor(name: str, purpose: str, company: str = None, image_data: b
     """
     session = get_session()
     try:
+        # FIXED Issue #59: Sanitize all text inputs
+        name = sanitize_input(name)
+        purpose = sanitize_input(purpose)
+        company = sanitize_input(company) if company else None
+        
         check_in_time = datetime.datetime.now()
-        image_path = None # Initialize image_path to None
+        image_path = None  # Initialize image_path to None
         
         # Save image if provided
         if image_data:
@@ -225,7 +292,8 @@ def register_visitor(name: str, purpose: str, company: str = None, image_data: b
         session.add(visitor)
         session.commit()
         
-        logger.info(f"Visitor {name} registered at {check_in_time}")
+        # FIXED Issue #57: Comprehensive logging for successful operation
+        logger.info(f"Visitor registered successfully: {name} from {company or 'N/A'} - Purpose: {purpose} at {check_in_time}")
         return f"Visitor {name} registered successfully at {check_in_time}."
     except Exception as e:
         session.rollback()
@@ -242,26 +310,52 @@ def book_appointment(appointment_year: int, appointment_month: int, appointment_
                      doctor_name: str, disease: str, user_email: str):
     """Book an appointment at the specified time.
     
+    FIXED Issue #60: Inputs sanitized to prevent XSS
+    FIXED Issue #61: Handles DST edge cases
+    
     Args:
         appointment_year: Year of appointment
         appointment_month: Month of appointment
         appointment_day: Day of appointment
         appointment_hour: Hour of appointment (0-23)
         appointment_minute: Minute of appointment (0-59)
-        doctor_name: Name of the doctor
-        disease: Disease/condition for appointment
-        user_email: Email of the user booking the appointment
+        doctor_name: Name of the doctor (will be sanitized)
+        disease: Disease/condition for appointment (will be sanitized)
+        user_email: Email of the user booking the appointment (will be sanitized)
+    
+    Returns:
+        dict: Success/error response with appointment details or error message
+    
+    Raises:
+        None: All errors returned as dict with success=False
     """
     session = get_session()
     try:
-        time = datetime.datetime(appointment_year, appointment_month, appointment_day, 
-                                 appointment_hour, appointment_minute)
+        # FIXED Issue #60: Sanitize text inputs to prevent XSS
+        doctor_name = sanitize_input(doctor_name)
+        disease = sanitize_input(disease)
+        user_email = sanitize_input(user_email)
+        # FIXED Issue #48: Create timezone-aware datetime from the start
+        tz = get_timezone()
+        time = tz.localize(datetime.datetime(
+            appointment_year, appointment_month, appointment_day,
+            appointment_hour, appointment_minute
+        ))
         
-        # FIXED Issue #38: Use timezone-aware datetime for comparison
+        # FIXED Issue #38, #48: Both datetimes are now timezone-aware
         if time < now_with_timezone():
             logger.warning(f"Attempt to book appointment in the past: {time}")
             # FIXED Issue #21: Standardized error format
             return {"success": False, "error": "PAST_DATE", "message": "Cannot book appointments in the past. Please select a future date and time."}
+        
+        # FIXED Issue #51: Validate working hours
+        if not (WORKING_HOURS_START <= time.hour < WORKING_HOURS_END):
+            logger.warning(f"Attempt to book outside working hours: {time.hour}:00")
+            return {
+                "success": False,
+                "error": "OUTSIDE_WORKING_HOURS",
+                "message": f"Appointments only available {WORKING_HOURS_START}:00 - {WORKING_HOURS_END}:00. Please select a time within business hours."
+            }
         
         # FIXED: Validate doctor exists
         doctor = session.query(Doctor).filter_by(name=doctor_name).first()
@@ -299,6 +393,28 @@ def book_appointment(appointment_year: int, appointment_month: int, appointment_
             # FIXED Issue #21: Standardized error format
             return {"success": False, "error": "USER_CONFLICT", "message": f"You already have an appointment at {time}. Cannot book multiple appointments at the same time."}
         
+        # FIXED Issue #53: Check for duplicate appointment with same doctor on same day
+        same_day_start = time.replace(hour=0, minute=0, second=0, microsecond=0)
+        same_day_end = time.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        existing_with_doctor = session.query(Appointment).filter(
+            and_(
+                Appointment.user_email == user_email,
+                Appointment.doctor_name == doctor_name,
+                Appointment.appointment_time >= same_day_start,
+                Appointment.appointment_time <= same_day_end,
+                Appointment.is_deleted == False
+            )
+        ).first()
+        
+        if existing_with_doctor:
+            logger.warning(f"User {user_email} already has appointment with {doctor_name} on {time.date()}")
+            return {
+                "success": False,
+                "error": "DUPLICATE_APPOINTMENT",
+                "message": f"You already have an appointment with {doctor_name} today at {existing_with_doctor.appointment_time.strftime('%H:%M')}. Cannot book multiple appointments with the same doctor on the same day."
+            }
+        
         # Check ML Prediction
         is_safe, msg = appointment_predictor.predict_availability(
             time.strftime("%Y-%m-%d"), time.strftime("%H:%M"), 30
@@ -320,8 +436,10 @@ def book_appointment(appointment_year: int, appointment_month: int, appointment_
         logger.info(f"Appointment booked: {time} with {doctor_name}")
         
         # FIXED Issue #13: Email sending separated from transaction
-        # FIXED Issue #35: Generate and save QR code
-        qr_filename = f"appointment_{appointment_id}_{int(time.timestamp())}.png"
+        # FIXED Issue #35, #50: Generate and save QR code with proper timestamp
+        # Use current time for timestamp to avoid timezone issues
+        timestamp = int(time_module.time())
+        qr_filename = f"appointment_{appointment_id}_{timestamp}.png"
         qr_path = str(IMAGES_DIR / qr_filename)
         qr_res = generate_qr_code(f"Appointment ID: {appointment_id}, Doctor: {doctor_name}, Time: {time}", qr_path)
         
@@ -367,16 +485,17 @@ def cancel_appointment(appointment_year: int, appointment_month: int, appointmen
     """
     session = get_session()
     try:
-        # FIXED Issue #38: Use timezone-aware datetime
-        time = now_with_timezone().replace(
-            year=appointment_year,
-            month=appointment_month,
-            day=appointment_day,
-            hour=appointment_hour,
-            minute=appointment_minute,
-            second=0,
-            microsecond=0
-        )
+        # FIXED Issue #48: Create timezone-aware datetime properly
+        tz = get_timezone()
+        time = tz.localize(datetime.datetime(
+            appointment_year,
+            appointment_month,
+            appointment_day,
+            appointment_hour,
+            appointment_minute,
+            0,  # second
+            0   # microsecond
+        ))
         
         appointment = session.query(Appointment).filter(
             and_(
