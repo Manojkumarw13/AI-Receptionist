@@ -182,19 +182,48 @@ def show_user_management():
             col1, col2, col3 = st.columns(3)
             
             with col1:
+                # FIX BUG-16: Use session_state flag instead of nested button
                 if st.button("🔄 Change Role", use_container_width=True):
-                    new_role = st.selectbox("New Role", ["user", "admin", "doctor"], key="role_change")
-                    if st.button("Confirm Role Change"):
-                        change_user_role(selected_user_id, new_role)
+                    st.session_state['show_role_change'] = selected_user_id
             
             with col2:
                 if st.button("🔒 Toggle Active Status", use_container_width=True):
                     toggle_user_status(selected_user_id)
+                    st.rerun()
             
             with col3:
+                # FIX BUG-17: Use session_state flag instead of nested button
                 if st.button("🗑️ Delete User", use_container_width=True):
-                    if st.button("⚠️ Confirm Delete", type="primary"):
+                    st.session_state['confirm_delete_user'] = selected_user_id
+            
+            # Role change form (shown after clicking Change Role)
+            if st.session_state.get('show_role_change') == selected_user_id:
+                with st.form(f"role_change_form_{selected_user_id}"):
+                    new_role = st.selectbox("New Role", ["user", "admin", "doctor"], key="role_change_select")
+                    col_confirm, col_cancel = st.columns(2)
+                    with col_confirm:
+                        if st.form_submit_button("✅ Confirm Role Change", use_container_width=True):
+                            change_user_role(selected_user_id, new_role)
+                            st.session_state.pop('show_role_change', None)
+                            st.rerun()
+                    with col_cancel:
+                        if st.form_submit_button("Cancel", use_container_width=True):
+                            st.session_state.pop('show_role_change', None)
+                            st.rerun()
+            
+            # Delete confirmation (shown after clicking Delete User)
+            if st.session_state.get('confirm_delete_user') == selected_user_id:
+                st.warning(f"⚠️ Are you sure you want to delete User ID {selected_user_id}? This cannot be undone.")
+                col_yes, col_no = st.columns(2)
+                with col_yes:
+                    if st.button("⚠️ Yes, Delete", type="primary", use_container_width=True):
                         delete_user(selected_user_id)
+                        st.session_state.pop('confirm_delete_user', None)
+                        st.rerun()
+                with col_no:
+                    if st.button("No, Cancel", use_container_width=True):
+                        st.session_state.pop('confirm_delete_user', None)
+                        st.rerun()
         else:
             st.info("No users found")
     

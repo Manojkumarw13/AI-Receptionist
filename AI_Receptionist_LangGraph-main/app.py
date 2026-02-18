@@ -113,12 +113,18 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
+if "user_role" not in st.session_state:  # FIX BUG-04
+    st.session_state.user_role = ""
+if "user_name" not in st.session_state:  # FIX BUG-04
+    st.session_state.user_name = ""
 if "booking_step" not in st.session_state:
     st.session_state.booking_step = 1
 if "selected_disease" not in st.session_state:
     st.session_state.selected_disease = ""
 if "selected_doctor" not in st.session_state:
     st.session_state.selected_doctor = ""
+if "booking_datetime" not in st.session_state:  # FIX BUG-22
+    st.session_state.booking_datetime = None
 
 # --- Authentication Logic ---
 def login_page():
@@ -360,8 +366,7 @@ def visitor_checkin_page():
                 st.success(f"🎉 {result}")
                 st.balloons()
                 
-                # Clear form
-                st.session_state.clear()
+                # FIX BUG-02: Only clear visitor form fields, NOT auth state
                 st.rerun()
             else:
                 st.warning("⚠️ Please fill in Name and Purpose of Visit.")
@@ -415,171 +420,175 @@ def manual_booking_page():
     st.markdown("---")
     
     session = get_session()
-    doctors = session.query(Doctor).all()
-    disease_specialties_list = session.query(DiseaseSpecialty).all()
-    disease_specialties = {ds.disease: ds.specialty for ds in disease_specialties_list}
+    try:  # FIX BUG-01: Wrap session in try/finally to prevent leaks
+        doctors = session.query(Doctor).all()
+        disease_specialties_list = session.query(DiseaseSpecialty).all()
+        disease_specialties = {ds.disease: ds.specialty for ds in disease_specialties_list}
     
-    # Step 1: Select Condition
-    if current_step == 1:
-        st.markdown("### 🏥 Step 1: What brings you in today?")
-        disease = st.text_input("Enter your condition or symptoms", placeholder="e.g., fever, headache, checkup", key="disease_input")
-        
-        if disease:
-            st.session_state.selected_disease = disease
-            specialty = disease_specialties.get(disease.lower())
+        # Step 1: Select Condition
+        if current_step == 1:
+            st.markdown("### 🏥 Step 1: What brings you in today?")
+            disease = st.text_input("Enter your condition or symptoms", placeholder="e.g., fever, headache, checkup", key="disease_input")
             
-            if specialty:
-                st.success(f"✅ Recommended Specialty: **{specialty}**")
-                if st.button("Next: Choose Doctor →", type="primary"):
-                    st.session_state.booking_step = 2
-                    st.rerun()
+            if disease:
+                st.session_state.selected_disease = disease
+                specialty = disease_specialties.get(disease.lower())
+                
+                if specialty:
+                    st.success(f"✅ Recommended Specialty: **{specialty}**")
+                    if st.button("Next: Choose Doctor →", type="primary"):
+                        st.session_state.booking_step = 2
+                        st.rerun()
+                else:
+                    st.warning(f"⚠️ No specific specialty found for '{disease}'. Showing all doctors.")
+                    if st.button("Continue Anyway →"):
+                        st.session_state.booking_step = 2
+                        st.rerun()
+        
+        # Step 2: Choose Doctor
+        elif current_step == 2:
+            st.markdown(f"### 👨‍⚕️ Step 2: Select Your Doctor")
+            st.caption(f"Condition: **{st.session_state.selected_disease}**")
+            
+            disease = st.session_state.selected_disease
+            specialty = disease_specialties.get(disease.lower())
+            available_doctors = [d.name for d in doctors if d.specialty == specialty] if specialty else [d.name for d in doctors]
+            
+            if available_doctors:
+                # Display doctors as cards
+                cols = st.columns(2)
+                for idx, doctor_name in enumerate(available_doctors):
+                    doctor_info = next((d for d in doctors if d.name == doctor_name), None)
+                    with cols[idx % 2]:
+                        with st.container():
+                            st.markdown(f"""
+                            <div class="glass-card hover-lift" style="border: 1px solid var(--border-light);">
+                                <h4>👨‍⚕️ Dr. {doctor_name}</h4>
+                                <p><strong>Specialty:</strong> <span class="gradient-text">{doctor_info.specialty if doctor_info else 'General'}</span></p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            if st.button(f"Select Dr. {doctor_name}", key=f"select_{doctor_name}", use_container_width=True):
+                                st.session_state.selected_doctor = doctor_name
+                                st.session_state.booking_step = 3
+                                st.rerun()
             else:
-                st.warning(f"⚠️ No specific specialty found for '{disease}'. Showing all doctors.")
-                if st.button("Continue Anyway →"):
-                    st.session_state.booking_step = 2
-                    st.rerun()
-    
-    # Step 2: Choose Doctor
-    elif current_step == 2:
-        st.markdown(f"### 👨‍⚕️ Step 2: Select Your Doctor")
-        st.caption(f"Condition: **{st.session_state.selected_disease}**")
-        
-        disease = st.session_state.selected_disease
-        specialty = disease_specialties.get(disease.lower())
-        available_doctors = [d.name for d in doctors if d.specialty == specialty] if specialty else [d.name for d in doctors]
-        
-        if available_doctors:
-            # Display doctors as cards
-            cols = st.columns(2)
-            for idx, doctor_name in enumerate(available_doctors):
-                doctor_info = next((d for d in doctors if d.name == doctor_name), None)
-                with cols[idx % 2]:
-                    with st.container():
-                        st.markdown(f"""
-                        <div class="glass-card hover-lift" style="border: 1px solid var(--border-light);">
-                            <h4>👨‍⚕️ Dr. {doctor_name}</h4>
-                            <p><strong>Specialty:</strong> <span class="gradient-text">{doctor_info.specialty if doctor_info else 'General'}</span></p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        if st.button(f"Select Dr. {doctor_name}", key=f"select_{doctor_name}", use_container_width=True):
-                            st.session_state.selected_doctor = doctor_name
-                            st.session_state.booking_step = 3
-                            st.rerun()
-        else:
-            st.error("❌ No doctors available for this specialty")
-        
-        if st.button("← Back", key="back_to_step1"):
-            st.session_state.booking_step = 1
-            st.rerun()
-    
-    # Step 3: Pick Date & Time
-    elif current_step == 3:
-        st.markdown(f"### 📅 Step 3: Choose Date & Time")
-        st.caption(f"Doctor: **Dr. {st.session_state.selected_doctor}** | Condition: **{st.session_state.selected_disease}**")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            date = st.date_input("📅 Select Date", min_value=datetime.date.today(), value=datetime.date.today())
-        with col2:
-            time = st.time_input("🕐 Select Time", value=datetime.time(9, 0))
-        
-        st.markdown("---")
-        
-        col_back, col_next = st.columns(2)
-        with col_back:
-            if st.button("← Back to Doctors", use_container_width=True):
-                st.session_state.booking_step = 2
+                st.error("❌ No doctors available for this specialty")
+            
+            if st.button("← Back", key="back_to_step1"):
+                st.session_state.booking_step = 1
                 st.rerun()
         
-        with col_next:
-            if st.button("Check Availability & Book →", use_container_width=True, type="primary"):
-                dt = datetime.datetime.combine(date, time)
-                
-                # ML Availability Check
-                with st.spinner("🔍 Checking availability..."):
-                    is_optimal, ml_msg = appointment_predictor.predict_availability(
-                        date.strftime("%Y-%m-%d"), 
-                        time.strftime("%H:%M"), 
-                        30
-                    )
-                
-                if not is_optimal:
-                    st.warning(f"⚠️ {ml_msg}")
-                    if st.checkbox("📌 Book this slot anyway?"):
+        # Step 3: Pick Date & Time
+        elif current_step == 3:
+            st.markdown(f"### 📅 Step 3: Choose Date & Time")
+            st.caption(f"Doctor: **Dr. {st.session_state.selected_doctor}** | Condition: **{st.session_state.selected_disease}**")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                date = st.date_input("📅 Select Date", min_value=datetime.date.today(), value=datetime.date.today())
+            with col2:
+                time = st.time_input("🕐 Select Time", value=datetime.time(9, 0))
+            
+            st.markdown("---")
+            
+            col_back, col_next = st.columns(2)
+            with col_back:
+                if st.button("← Back to Doctors", use_container_width=True):
+                    st.session_state.booking_step = 2
+                    st.rerun()
+            
+            with col_next:
+                if st.button("Check Availability & Book →", use_container_width=True, type="primary"):
+                    dt = datetime.datetime.combine(date, time)
+                    
+                    # ML Availability Check
+                    with st.spinner("🔍 Checking availability..."):
+                        is_optimal, ml_msg = appointment_predictor.predict_availability(
+                            date.strftime("%Y-%m-%d"), 
+                            time.strftime("%H:%M"), 
+                            30
+                        )
+                    
+                    if not is_optimal:
+                        st.warning(f"⚠️ {ml_msg}")
+                        if st.checkbox("📌 Book this slot anyway?"):
+                            st.session_state.booking_step = 4
+                            st.session_state.booking_datetime = dt
+                            st.rerun()
+                    else:
+                        st.success("✅ This time slot looks great!")
                         st.session_state.booking_step = 4
                         st.session_state.booking_datetime = dt
                         st.rerun()
-                else:
-                    st.success("✅ This time slot looks great!")
-                    st.session_state.booking_step = 4
-                    st.session_state.booking_datetime = dt
+        
+        # Step 4: Confirm Booking
+        elif current_step == 4:
+            st.markdown("### ✅ Step 4: Confirm Your Appointment")
+            
+            dt = st.session_state.booking_datetime
+            
+            # Summary card
+            st.markdown(f"""
+            <div class="glass-card">
+                <h3 style='margin-top: 0;' class="gradient-text">📋 Appointment Summary</h3>
+                <p><strong>👨‍⚕️ Doctor:</strong> Dr. {st.session_state.selected_doctor}</p>
+                <p><strong>🏥 Condition:</strong> {st.session_state.selected_disease}</p>
+                <p><strong>📅 Date & Time:</strong> {dt.strftime("%B %d, %Y at %I:%M %p")}</p>
+                <p><strong>👤 Patient:</strong> {st.session_state.user_email}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            
+            col_back, col_confirm = st.columns(2)
+            
+            with col_back:
+                if st.button("← Back to Date Selection", use_container_width=True):
+                    st.session_state.booking_step = 3
                     st.rerun()
-    
-    # Step 4: Confirm Booking
-    elif current_step == 4:
-        st.markdown("### ✅ Step 4: Confirm Your Appointment")
-        
-        dt = st.session_state.booking_datetime
-        
-        # Summary card
-        st.markdown(f"""
-        <div class="glass-card">
-            <h3 style='margin-top: 0;' class="gradient-text">📋 Appointment Summary</h3>
-            <p><strong>👨‍⚕️ Doctor:</strong> Dr. {st.session_state.selected_doctor}</p>
-            <p><strong>🏥 Condition:</strong> {st.session_state.selected_disease}</p>
-            <p><strong>📅 Date & Time:</strong> {dt.strftime("%B %d, %Y at %I:%M %p")}</p>
-            <p><strong>👤 Patient:</strong> {st.session_state.user_email}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        col_back, col_confirm = st.columns(2)
-        
-        with col_back:
-            if st.button("← Back to Date Selection", use_container_width=True):
-                st.session_state.booking_step = 3
-                st.rerun()
-        
-        with col_confirm:
-            if st.button("🎉 Confirm Booking", use_container_width=True, type="primary"):
-                booking_session = get_session()
-                try:
-                    # Simple conflict check
-                    conflict = booking_session.query(Appointment).filter(
-                        Appointment.appointment_time == dt
-                    ).first()
-                    
-                    if conflict:
-                        st.error("❌ This slot is already booked. Please choose another time.")
-                    else:
-                        new_appointment = Appointment(
-                            user_email=st.session_state.user_email,
-                            doctor_name=st.session_state.selected_doctor,
-                            disease=st.session_state.selected_disease,
-                            appointment_time=dt
-                        )
-                        booking_session.add(new_appointment)
-                        booking_session.commit()
-                    
-                        st.success(f"✅ Appointment confirmed with Dr. {st.session_state.selected_doctor}!")
-                        st.balloons()
+            
+            with col_confirm:
+                if st.button("🎉 Confirm Booking", use_container_width=True, type="primary"):
+                    booking_session = get_session()
+                    try:
+                        # FIX BUG-07: Conflict check now excludes soft-deleted appointments
+                        conflict = booking_session.query(Appointment).filter(
+                            Appointment.appointment_time == dt,
+                            Appointment.is_deleted == False
+                        ).first()
                         
-                        # QR Code Generation
-                        qr_msg = generate_qr_code(f"Appointment: Dr. {st.session_state.selected_doctor} @ {dt}")
-                        st.info(f"📱 {qr_msg}")
-                        
-                        # Reset booking flow
-                        st.session_state.booking_step = 1
-                        st.session_state.selected_disease = ""
-                        st.session_state.selected_doctor = ""
-                except Exception as e:
-                    booking_session.rollback()
-                    st.error(f"❌ Booking failed: {e}")
-                finally:
-                    booking_session.close()
+                        if conflict:
+                            st.error("❌ This slot is already booked. Please choose another time.")
+                        else:
+                            # FIX BUG-08: Success block is now correctly inside the else clause
+                            new_appointment = Appointment(
+                                user_email=st.session_state.user_email,
+                                doctor_name=st.session_state.selected_doctor,
+                                disease=st.session_state.selected_disease,
+                                appointment_time=dt
+                            )
+                            booking_session.add(new_appointment)
+                            booking_session.commit()
+                            
+                            st.success(f"✅ Appointment confirmed with Dr. {st.session_state.selected_doctor}!")
+                            st.balloons()
+                            
+                            # QR Code Generation
+                            qr_msg = generate_qr_code(f"Appointment: Dr. {st.session_state.selected_doctor} @ {dt}")
+                            st.info(f"📱 {qr_msg}")
+                            
+                            # Reset booking flow
+                            st.session_state.booking_step = 1
+                            st.session_state.selected_disease = ""
+                            st.session_state.selected_doctor = ""
+                    except Exception as e:
+                        booking_session.rollback()
+                        st.error(f"❌ Booking failed: {e}")
+                    finally:
+                        booking_session.close()
     
-    session.close()
+    finally:  # FIX BUG-01: Ensure session always closes even on exception
+        session.close()
 
 # --- Sidebar Stats Dashboard ---
 def display_stats():
@@ -646,7 +655,7 @@ def main():
             st.markdown("### 🧭 Navigation")
             
             # Navigation with icons - conditional admin access
-            nav_options = ["🤖 AI Assistant", "📸 Visitor Check-in", "📅 Manual Booking", "📊 Analytics Dashboard", "📅 Calendar View"]
+            nav_options = ["🤖 AI Assistant", "📸 Visitor Check-in", "📅 Manual Booking", "📊 Analytics Dashboard", "🗓️ Calendar View"]  # FIX BUG-05: distinct emoji
             
             # Add admin dashboard for admin users
             if st.session_state.get('user_role') == 'admin':
@@ -665,9 +674,16 @@ def main():
             
             # Logout button
             if st.button("🚪 Logout", use_container_width=True):
+                # FIX BUG-03: Clear ALL auth-related session state on logout
                 st.session_state.authenticated = False
                 st.session_state.user_email = ""
+                st.session_state.user_role = ""
+                st.session_state.user_name = ""
                 st.session_state.chat_history = []
+                st.session_state.booking_step = 1
+                st.session_state.selected_disease = ""
+                st.session_state.selected_doctor = ""
+                st.session_state.booking_datetime = None
                 st.rerun()
 
         # Page routing
@@ -677,10 +693,9 @@ def main():
             visitor_checkin_page()
         elif page == "📅 Manual Booking":
             manual_booking_page()
-        elif page == "📊 Analytics Dashboard":
-            from analytics_dashboard import show_analytics_dashboard
+        elif page == "📊 Analytics Dashboard":  # FIX BUG-35: use already-imported function
             show_analytics_dashboard()
-        elif page == "📅 Calendar View":
+        elif page == "🗓️ Calendar View":  # FIX BUG-05: match updated emoji
             from ui.calendar_view import show_calendar_view
             show_calendar_view()
         elif page == "🔐 Admin Dashboard":

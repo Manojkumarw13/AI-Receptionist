@@ -420,7 +420,12 @@ def book_appointment(appointment_year: int, appointment_month: int, appointment_
             time.strftime("%Y-%m-%d"), time.strftime("%H:%M"), 30
         )
         if not is_safe:
-            return f"Warning: {msg}. Do you still want to proceed?"
+            # FIX BUG-11: Return consistent dict type instead of plain string
+            return {
+                "success": False,
+                "error": "ML_WARNING",
+                "message": f"Warning: {msg}. Please choose a different time slot."
+            }
 
         # Add the appointment to database
         new_appointment = Appointment(
@@ -505,9 +510,11 @@ def cancel_appointment(appointment_year: int, appointment_month: int, appointmen
         ).first()
         
         if appointment:
-            session.delete(appointment)
+            # FIX BUG-12: Use soft delete instead of hard delete to preserve audit history
+            appointment.is_deleted = True
+            appointment.status = "Cancelled"
             session.commit()
-            logger.info(f"Appointment at {time} cancelled for user {user_email}")
+            logger.info(f"Appointment at {time} soft-cancelled for user {user_email}")
             
             # FIXED Issue #13: Email sending separated from transaction
             subject = "Appointment Cancellation"

@@ -7,7 +7,9 @@ import os
 from pathlib import Path
 
 # Base directories
-BASE_DIR = Path(__file__).parent.parent
+# FIX BUG-31: config.py is in the project root, so parent IS the project root
+# parent.parent was incorrectly pointing one level above the project
+BASE_DIR = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
 IMAGES_DIR = STATIC_DIR / "images"  # FIXED Issue #23: Configurable image directory
 LOGS_DIR = BASE_DIR / "logs"

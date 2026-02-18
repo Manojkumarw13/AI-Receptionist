@@ -18,8 +18,14 @@ import os
 # Load environment variables from .env file
 load_dotenv()
 
-# Set the Groq API key
-os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
+# FIX BUG-09: Guard against missing GROQ_API_KEY to prevent silent None assignment or TypeError
+_groq_api_key = os.getenv("GROQ_API_KEY")
+if not _groq_api_key:
+    raise EnvironmentError(
+        "GROQ_API_KEY is not set. Please add it to your .env file. "
+        "The application cannot start without a valid Groq API key."
+    )
+os.environ["GROQ_API_KEY"] = _groq_api_key
 
 # Initialize the Groq model with the necessary parameters
 llm = ChatGroq(model="llama3-70b-8192", temperature=0.5)
