@@ -28,6 +28,17 @@ def show_analytics_dashboard():
     session = get_star_session()
     
     try:
+        # FIX BUG-28: Check if star schema has any data before rendering charts.
+        # An empty star schema means ETL hasn't run yet — show a clear message.
+        total_facts = session.query(FactAppointment).count()
+        if total_facts == 0:
+            st.info(
+                "📭 **No analytics data yet.**\n\n"
+                "The analytics dashboard uses a star schema that is populated when appointments are created. "
+                "Book some appointments first, or run the ETL pipeline to populate the analytics database."
+            )
+            return
+        
         # Key Metrics Row
         st.subheader("📈 Key Metrics")
         col1, col2, col3, col4 = st.columns(4)

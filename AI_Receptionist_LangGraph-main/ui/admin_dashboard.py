@@ -140,12 +140,25 @@ def show_user_management():
             col1, col2 = st.columns(2)
             with col1:
                 if st.form_submit_button("Add User", use_container_width=True):
-                    if new_email and new_password:
+                    # FIX BUG-25: Validate email format and password strength
+                    import re
+                    errors = []
+                    if not new_email:
+                        errors.append("Email is required.")
+                    elif not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', new_email):
+                        errors.append("Email format is invalid.")
+                    if not new_password:
+                        errors.append("Password is required.")
+                    elif len(new_password) < 8:
+                        errors.append("Password must be at least 8 characters.")
+                    
+                    if errors:
+                        for err in errors:
+                            st.error(err)
+                    else:
                         add_user(new_email, new_password, new_name, new_role)
                         st.session_state.show_add_user = False
                         st.rerun()
-                    else:
-                        st.error("Email and password required")
             with col2:
                 if st.form_submit_button("Cancel", use_container_width=True):
                     st.session_state.show_add_user = False
@@ -213,17 +226,24 @@ def show_user_management():
             
             # Delete confirmation (shown after clicking Delete User)
             if st.session_state.get('confirm_delete_user') == selected_user_id:
-                st.warning(f"⚠️ Are you sure you want to delete User ID {selected_user_id}? This cannot be undone.")
-                col_yes, col_no = st.columns(2)
-                with col_yes:
-                    if st.button("⚠️ Yes, Delete", type="primary", use_container_width=True):
-                        delete_user(selected_user_id)
-                        st.session_state.pop('confirm_delete_user', None)
-                        st.rerun()
-                with col_no:
-                    if st.button("No, Cancel", use_container_width=True):
-                        st.session_state.pop('confirm_delete_user', None)
-                        st.rerun()
+                # FIX BUG-26: Prevent admin from deleting their own account
+                current_user_email = st.session_state.get('user_email', '')
+                target_user = next((u for u in users if u.id == selected_user_id), None)
+                if target_user and target_user.email == current_user_email:
+                    st.error("❌ You cannot delete your own admin account.")
+                    st.session_state.pop('confirm_delete_user', None)
+                else:
+                    st.warning(f"⚠️ Are you sure you want to delete User ID {selected_user_id}? This cannot be undone.")
+                    col_yes, col_no = st.columns(2)
+                    with col_yes:
+                        if st.button("⚠️ Yes, Delete", type="primary", use_container_width=True):
+                            delete_user(selected_user_id)
+                            st.session_state.pop('confirm_delete_user', None)
+                            st.rerun()
+                    with col_no:
+                        if st.button("No, Cancel", use_container_width=True):
+                            st.session_state.pop('confirm_delete_user', None)
+                            st.rerun()
         else:
             st.info("No users found")
     
@@ -480,7 +500,7 @@ def add_user(email, password, name, role):
 
 
 def change_user_role(user_id, new_role):
-    """Change user role"""
+    """Change user role — FIX BUG-27: Added exception handling."""
     session = get_session()
     try:
         user = session.query(User).filter_by(id=user_id).first()
@@ -491,6 +511,9 @@ def change_user_role(user_id, new_role):
             st.rerun()
         else:
             st.error("User not found")
+    except Exception as e:
+        session.rollback()
+        st.error(f"❌ Failed to change role: {e}")
     finally:
         session.close()
 

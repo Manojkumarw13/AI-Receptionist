@@ -2,6 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langgraph.graph import StateGraph, END, MessagesState
 from langgraph.prebuilt import ToolNode
 import datetime
+import time  # FIX BUG-23: for retry backoff
 from .tools import (
     check_availability_ml, book_appointment, cancel_appointment,
     get_next_available_appointment, generate_qr_code, register_visitor
@@ -63,9 +64,25 @@ def should_continue_caller(state: MessagesState):
 
 # Node function to call the Groq model
 def call_caller_model(state: MessagesState):
-    state["current_time"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    response = caller_model.invoke(state)
-    return {"messages": [response]}
+    # FIX BUG-10: Do NOT mutate state with state["current_time"] — MessagesState
+    # only accepts the "messages" key. Pass current_time via the prompt input dict.
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    
+    # FIX BUG-23: Retry with exponential backoff for transient API errors
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = caller_model.invoke({
+                "messages": state["messages"],
+                "current_time": current_time
+            })
+            return {"messages": [response]}
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt  # 1s, 2s, 4s
+                time.sleep(wait)
+            else:
+                raise  # Re-raise after all retries exhausted
 
 # List of tools for managing appointments
 caller_tools = [

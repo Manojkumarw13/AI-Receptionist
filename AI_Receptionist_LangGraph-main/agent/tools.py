@@ -101,26 +101,49 @@ def send_email_notification(to_email: str, subject: str, message: str) -> bool:
 # Tool to get the next available appointment
 @tool
 def get_next_available_appointment():
-    """Returns the next available appointment.
+    """Returns the next available appointment within working hours.
     
-    FIXED Issue #52: Standardized to return dict format
+    FIX BUG-13: Now respects WORKING_HOURS_START/END from config so it
+    never suggests slots outside working hours or on weekends.
     """
     session = get_session()
     try:
         current_time = datetime.datetime.now()
         # Align to next 30 min slot
         minutes_to_add = 30 - current_time.minute % 30
-        if minutes_to_add == 30: 
+        if minutes_to_add == 30:
             minutes_to_add = 0
         
         start_time = current_time + datetime.timedelta(minutes=minutes_to_add)
-        # Ensure seconds/microseconds are zero for cleaner matching
         start_time = start_time.replace(second=0, microsecond=0)
+        
+        # FIX BUG-13: Helper to advance to next valid working slot
+        def advance_to_working_hours(dt):
+            """Move dt to start of next working slot if outside working hours."""
+            # Skip weekends (Mon=0 ... Sun=6)
+            while dt.weekday() >= 5:  # Saturday or Sunday
+                dt = (dt + datetime.timedelta(days=1)).replace(
+                    hour=WORKING_HOURS_START, minute=0, second=0, microsecond=0
+                )
+            # Before working hours: jump to start of working day
+            if dt.hour < WORKING_HOURS_START:
+                dt = dt.replace(hour=WORKING_HOURS_START, minute=0, second=0, microsecond=0)
+            # After working hours: jump to next working day
+            elif dt.hour >= WORKING_HOURS_END:
+                dt = (dt + datetime.timedelta(days=1)).replace(
+                    hour=WORKING_HOURS_START, minute=0, second=0, microsecond=0
+                )
+                # Recurse to skip any weekend that follows
+                dt = advance_to_working_hours(dt)
+            return dt
+        
+        start_time = advance_to_working_hours(start_time)
         
         while True:
             # Check if slot is booked in database
             is_booked = session.query(Appointment).filter(
-                Appointment.appointment_time == start_time
+                Appointment.appointment_time == start_time,
+                Appointment.is_deleted == False  # FIX: also ignore soft-deleted
             ).first() is not None
             
             if not is_booked:
@@ -133,24 +156,24 @@ def get_next_available_appointment():
                 
                 if is_optimal:
                     logger.info(f"Next available appointment: {start_time}")
-                    # FIXED Issue #52: Return dict instead of string
                     return {
                         "success": True,
                         "appointment_time": start_time.strftime("%Y-%m-%d %H:%M"),
-                        "message": f"One appointment available at {start_time}"
+                        "message": f"Next available appointment is at {start_time.strftime('%Y-%m-%d %H:%M')}"
                     }
-                
-            start_time += datetime.timedelta(minutes=30)
+            
+            # Advance by 30 minutes, then re-check working hours
+            start_time = advance_to_working_hours(
+                start_time + datetime.timedelta(minutes=30)
+            )
             # Limit search to avoid infinite loop
             if (start_time - current_time).days > 7:
-                # FIXED Issue #52: Return dict instead of string
                 return {
                     "success": False,
                     "error": "NO_AVAILABILITY",
                     "message": "No appointments available in the next 7 days."
                 }
     finally:
-        # FIXED Issue #49: Always cleanup session
         session.close()
 
 

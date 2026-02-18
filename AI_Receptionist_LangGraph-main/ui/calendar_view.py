@@ -112,8 +112,8 @@ def show_all_doctors_calendar(start_date, end_date):
         fig = create_doctor_summary_chart(appointments, doctors, start_date, end_date)
         st.plotly_chart(fig, use_container_width=True)
         
-        # Show statistics
-        show_statistics(appointments, start_date, end_date)
+        # FIX BUG-19: Pass num_doctors so slot count is correct for all-doctors view
+        show_statistics(appointments, start_date, end_date, num_doctors=len(doctors) if doctors else 1)
         
     finally:
         session.close()
@@ -238,8 +238,13 @@ def create_doctor_summary_chart(appointments, doctors, start_date, end_date):
     return fig
 
 
-def show_statistics(appointments, start_date, end_date):
-    """Show appointment statistics"""
+def show_statistics(appointments, start_date, end_date, num_doctors=1):
+    """Show appointment statistics.
+    
+    FIX BUG-19: Added num_doctors parameter so the 'All Doctors' view
+    correctly multiplies slots by the number of doctors instead of always
+    using 1 doctor worth of slots.
+    """
     st.subheader("📈 Statistics")
     
     col1, col2, col3, col4 = st.columns(4)
@@ -259,9 +264,10 @@ def show_statistics(appointments, start_date, end_date):
         cancelled = sum(1 for apt in appointments if apt.status == "Cancelled")
         st.metric("Cancelled", cancelled)
     
-    # Calculate availability rate
+    # FIX BUG-19: Multiply slots by number of doctors for accurate availability rate
     total_days = (end_date - start_date).days + 1
-    total_slots = total_days * 16  # 16 slots per day (9 AM - 5 PM, 30 min intervals)
+    slots_per_day = 16  # 9 AM - 5 PM, 30-min intervals = 16 slots
+    total_slots = total_days * slots_per_day * num_doctors
     booked_slots = len(appointments)
     availability_rate = ((total_slots - booked_slots) / total_slots) * 100 if total_slots > 0 else 0
     

@@ -48,9 +48,15 @@ BACKGROUND_PATH = "assets/images/current/medical_technology.jpg"
 
 # --- Helper Functions ---
 def load_css():
-    """Load custom CSS"""
-    with open("assets/styles.css", "r") as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    """Load custom CSS — FIX BUG-20: gracefully handle missing CSS file."""
+    css_path = "assets/styles.css"
+    if not os.path.exists(css_path):
+        return  # CSS is optional; skip silently if file is missing
+    try:
+        with open(css_path, "r") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    except Exception:
+        pass  # Never crash the app over missing CSS
 
 def get_base64_image(image_path):
     """Convert image to base64"""
@@ -128,8 +134,8 @@ if "booking_datetime" not in st.session_state:  # FIX BUG-22
 
 # --- Authentication Logic ---
 def login_page():
-    # Load custom CSS
-    load_css()
+    # FIX BUG-06: load_css() is already called at the top of the app flow;
+    # calling it again here was a duplicate that injected CSS twice.
     
     # Background styling - using real medical image from Unsplash
     if os.path.exists(BACKGROUND_PATH):
