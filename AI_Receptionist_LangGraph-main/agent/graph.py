@@ -28,8 +28,10 @@ if not _groq_api_key:
     )
 os.environ["GROQ_API_KEY"] = _groq_api_key
 
-# Initialize the Groq model with the necessary parameters
-llm = ChatGroq(model="llama3-70b-8192", temperature=0.5)
+# FIX BUG-34: Make model name configurable via env var so it can be changed
+# without code edits if Groq deprecates the current model.
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama3-70b-8192")
+llm = ChatGroq(model=GROQ_MODEL, temperature=0.5)
 
 
 # Function to process and respond to user messages

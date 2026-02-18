@@ -22,7 +22,9 @@ class User(Base):
     name = Column(String(255), nullable=True)  # User's full name
     role = Column(String(20), default="user", nullable=False)  # user, admin, doctor
     is_active = Column(Boolean, default=True, nullable=False)  # Account active status
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    # FIX BUG-32: Use datetime.utcnow (Python callable) not func.now() (SQL expression)
+    # func.now() can be evaluated at class-definition time in some SQLAlchemy versions.
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_login = Column(DateTime, nullable=True)  # Track last login time
     
     def __repr__(self):
@@ -58,8 +60,9 @@ class Appointment(Base):
     status = Column(String(50), default='Scheduled', nullable=False)  # FIXED Issue #36: Added status field
     is_deleted = Column(Boolean, default=False, nullable=False)  # FIXED Issue #33: Soft delete support
     qr_code_path = Column(String(500), nullable=True)  # FIXED Issue #35: Track QR codes
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())  # Track updates
+    # FIX BUG-32: Use datetime.utcnow (Python callable) not func.now() (SQL expression)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Track updates
     
     # Create composite index for faster user-based and time-based queries
     # FIXED Issue #18: Added standalone time index for better performance
@@ -94,7 +97,8 @@ class Visitor(Base):
     name = Column(String(255), nullable=False)
     purpose = Column(String(500), nullable=False)
     company = Column(String(255), nullable=True)
-    check_in_time = Column(DateTime, default=func.now(), nullable=False, index=True)
+    # FIX BUG-32: Use datetime.utcnow (Python callable) not func.now() (SQL expression)
+    check_in_time = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     image_path = Column(String(500), nullable=True)
     
     def __repr__(self):

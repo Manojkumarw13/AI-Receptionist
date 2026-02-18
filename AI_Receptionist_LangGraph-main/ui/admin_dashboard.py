@@ -352,10 +352,13 @@ def show_appointment_management():
     session = get_session()
     try:
         # Build query
+        # FIX BUG-18: Use explicit time(0,0,0) and time(23,59,59) instead of
+        # confusing datetime.min.time() / datetime.max.time() idiom.
+        from datetime import time as dt_time
         query = session.query(Appointment).filter(
             and_(
-                Appointment.appointment_time >= datetime.combine(date_from, datetime.min.time()),
-                Appointment.appointment_time <= datetime.combine(date_to, datetime.max.time())
+                Appointment.appointment_time >= datetime.combine(date_from, dt_time(0, 0, 0)),
+                Appointment.appointment_time <= datetime.combine(date_to, dt_time(23, 59, 59))
             )
         )
         

@@ -7,7 +7,7 @@ import os
 from datetime import datetime, date, time as time_type
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool  # FIX BUG-33: NullPool is safer than StaticPool for multi-user Streamlit apps
 from database.models import Base
 import logging
 
@@ -24,18 +24,21 @@ STAR_DB_path = os.path.join(BASE_DIR, "receptionist_star.db")
 DATABASE_URL = f"sqlite:///{DB_path}"
 STAR_DATABASE_URL = f"sqlite:///{STAR_DB_path}"
 
-# Create engines
+# FIX BUG-33: Use NullPool instead of StaticPool.
+# StaticPool shares a single connection across all threads — fine for testing
+# but causes data staleness and locking issues with concurrent Streamlit users.
+# NullPool creates a fresh connection per request and closes it immediately.
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
+    poolclass=NullPool,
     echo=False
 )
 
 star_engine = create_engine(
     STAR_DATABASE_URL,
     connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
+    poolclass=NullPool,  # FIX BUG-33
     echo=False
 )
 

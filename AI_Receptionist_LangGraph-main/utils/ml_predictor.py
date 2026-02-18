@@ -1,6 +1,6 @@
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+# FIX BUG-29: train_test_split removed — we now train on the full dataset in production
 from datetime import datetime
 import os
 import logging
@@ -10,9 +10,14 @@ logging.basicConfig(level=logging.INFO)
 
 class AppointmentPredictor:
     def __init__(self, data_file="appointment_data.csv"):
-        # Get absolute path to data file
-        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.data_file = os.path.join(BASE_DIR, "data", "appointment_data.csv")
+        # FIX BUG-30: Honour the data_file argument instead of always overwriting it.
+        # If the caller passes an absolute path, use it directly.
+        # Otherwise, resolve relative to the project data/ directory.
+        if os.path.isabs(data_file):
+            self.data_file = data_file
+        else:
+            BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            self.data_file = os.path.join(BASE_DIR, "data", data_file)
         self.model = None
         self.is_trained = False
         self._train_model()
@@ -38,13 +43,17 @@ class AppointmentPredictor:
             X = df[['weekday', 'hour', 'duration']]
             y = df['status']
 
-            # constant split for reproducibility, though re-training on full data might be better for production
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
+            # FIX BUG-29: Train on the FULL dataset in production.
+            # A train/test split wastes 20% of data and the test accuracy was
+            # never logged anyway. We log training accuracy for observability.
             self.model = RandomForestClassifier(n_estimators=100, random_state=42)
-            self.model.fit(X_train, y_train)
+            self.model.fit(X, y)
+            train_accuracy = self.model.score(X, y)
             self.is_trained = True
-            logging.info("Appointment Prediction Model trained successfully.")
+            logging.info(
+                f"Appointment Prediction Model trained on {len(df)} samples. "
+                f"Training accuracy: {train_accuracy:.2%}"
+            )
             
         except Exception as e:
             # FIXED: Better error handling
