@@ -587,17 +587,32 @@ def update_doctor(doctor_id, name, specialty):
 
 
 def delete_doctor(doctor_id):
-    """Delete doctor"""
+    """Delete doctor — FIX BUG-N07: Check for active appointments first to prevent orphaned records."""
     session = get_session()
     try:
         doctor = session.query(Doctor).filter_by(id=doctor_id).first()
         if doctor:
+            # FIX BUG-N07: Prevent deletion if doctor has active appointments
+            active_appointments = session.query(Appointment).filter(
+                Appointment.doctor_name == doctor.name,
+                Appointment.is_deleted == False
+            ).count()
+            if active_appointments > 0:
+                st.error(
+                    f"❌ Cannot delete Dr. {doctor.name}: "
+                    f"{active_appointments} active appointment(s) exist. "
+                    "Cancel or complete them first."
+                )
+                return
             session.delete(doctor)
             session.commit()
             st.success("✅ Doctor deleted")
             st.rerun()
         else:
             st.error("Doctor not found")
+    except Exception as e:
+        session.rollback()
+        st.error(f"❌ Failed to delete doctor: {e}")
     finally:
         session.close()
 
@@ -619,16 +634,25 @@ def update_appointment_status(apt_id, status):
 
 
 def delete_appointment(apt_id):
-    """Delete appointment"""
+    """Soft-delete appointment — FIX BUG-N06: Use soft delete to preserve audit history.
+    
+    Previously used session.delete() (hard delete), which destroyed audit history.
+    Now mirrors the cancel_appointment tool's soft-delete approach.
+    """
     session = get_session()
     try:
         apt = session.query(Appointment).filter_by(id=apt_id).first()
         if apt:
-            session.delete(apt)
+            # FIX BUG-N06: Soft delete instead of hard delete
+            apt.is_deleted = True
+            apt.status = "Cancelled"
             session.commit()
             st.success("✅ Appointment deleted")
             st.rerun()
         else:
             st.error("Appointment not found")
+    except Exception as e:
+        session.rollback()
+        st.error(f"❌ Failed to delete appointment: {e}")
     finally:
         session.close()

@@ -549,14 +549,16 @@ def cancel_appointment(appointment_year: int, appointment_month: int, appointmen
             else:
                 logger.warning(f"Appointment cancelled but email failed for: {user_email}")
             
-            return f"Appointment at {time} cancelled successfully."
+            # FIX BUG-N04: Return consistent dict type (was returning a plain string here,
+            # but a dict on error — breaking any caller that checks result["success"])
+            return {"success": True, "message": f"Appointment at {time} cancelled successfully."}
         else:
             logger.warning(f"No appointment found for user {user_email} at: {time}")
-            return f"No appointment found at {time} for your account"
+            # FIX BUG-N04: Return consistent dict type (was returning a plain string here)
+            return {"success": False, "error": "NOT_FOUND", "message": f"No appointment found at {time} for your account"}
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to cancel appointment: {e}")
-        # FIXED Issue #21: Standardized error format
         return {"success": False, "error": "CANCELLATION_FAILED", "message": f"Failed to cancel appointment: {str(e)}"}
     finally:
         session.close()

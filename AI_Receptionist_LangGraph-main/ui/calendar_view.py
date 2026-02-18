@@ -62,12 +62,15 @@ def show_doctor_calendar(doctor_name, start_date, end_date):
     session = get_session()
     
     try:
-        # Fetch appointments
+        # FIX BUG-N05: Use explicit time(0,0,0) and time(23,59,59) instead of
+        # confusing datetime.min.time() / datetime.max.time() idiom.
+        # (Same fix as BUG-18 in admin_dashboard.py — was missed here.)
+        from datetime import time as dt_time
         appointments = session.query(Appointment).filter(
             and_(
                 Appointment.doctor_name == doctor_name,
-                Appointment.appointment_time >= datetime.combine(start_date, datetime.min.time()),
-                Appointment.appointment_time <= datetime.combine(end_date, datetime.max.time()),
+                Appointment.appointment_time >= datetime.combine(start_date, dt_time(0, 0, 0)),
+                Appointment.appointment_time <= datetime.combine(end_date, dt_time(23, 59, 59)),
                 Appointment.is_deleted == False
             )
         ).all()
@@ -94,11 +97,13 @@ def show_all_doctors_calendar(start_date, end_date):
     session = get_session()
     
     try:
-        # Fetch all appointments
+        # FIX BUG-N05: Use explicit time(0,0,0) and time(23,59,59) instead of
+        # confusing datetime.min.time() / datetime.max.time() idiom.
+        from datetime import time as dt_time
         appointments = session.query(Appointment).filter(
             and_(
-                Appointment.appointment_time >= datetime.combine(start_date, datetime.min.time()),
-                Appointment.appointment_time <= datetime.combine(end_date, datetime.max.time()),
+                Appointment.appointment_time >= datetime.combine(start_date, dt_time(0, 0, 0)),
+                Appointment.appointment_time <= datetime.combine(end_date, dt_time(23, 59, 59)),
                 Appointment.is_deleted == False
             )
         ).all()

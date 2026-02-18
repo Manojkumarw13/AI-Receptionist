@@ -18,6 +18,16 @@ from utils.ml_predictor import appointment_predictor
 # Load environment variables
 load_dotenv()
 
+# FIX BUG-N08: st.set_page_config() MUST be the very first Streamlit call.
+# Moving it here, before any st.error()/st.stop(), prevents StreamlitAPIException
+# when GROQ_API_KEY is missing.
+st.set_page_config(
+    page_title="AI Receptionist - Aura Health",
+    page_icon="🤖",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 # FIXED Issue #16: Validate required environment variables
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 EMAIL = os.getenv("EMAIL")
@@ -35,15 +45,10 @@ if not EMAIL or not EMAIL_PASSWORD:
 # Initialize database
 init_db()
 
-st.set_page_config(
-    page_title="AI Receptionist - Aura Health",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 # Constants
-LOGO_PATH = "assets/images/current/logo.png"
+# FIX BUG-N01: Unified logo path — was inconsistently using two different paths.
+# 'static/images/current/' is the correct location per config.py IMAGES_DIR.
+LOGO_PATH = "static/images/current/logo.png"
 BACKGROUND_PATH = "assets/images/current/medical_technology.jpg"
 
 # --- Helper Functions ---
@@ -386,9 +391,11 @@ def manual_booking_page():
     with st.expander("📋 Your Upcoming Appointments", expanded=False):
         session = get_session()
         try:
+            # FIX BUG-N03: Exclude soft-deleted appointments from upcoming list
             user_appointments = session.query(Appointment).filter(
                 Appointment.user_email == st.session_state.user_email,
-                Appointment.appointment_time >= datetime.datetime.now()
+                Appointment.appointment_time >= datetime.datetime.now(),
+                Appointment.is_deleted == False
             ).order_by(Appointment.appointment_time).all()
             
             if user_appointments:
@@ -603,9 +610,10 @@ def display_stats():
     
     session = get_session()
     try:
-        # User appointments
+        # FIX BUG-N02: Exclude soft-deleted appointments from sidebar count
         user_appointments_count = session.query(Appointment).filter(
-            Appointment.user_email == st.session_state.user_email
+            Appointment.user_email == st.session_state.user_email,
+            Appointment.is_deleted == False
         ).count()
         
         # Total doctors
@@ -638,9 +646,9 @@ def main():
     else:
         with st.sidebar:
             # Logo in sidebar with enhanced styling
-            logo_path = "static/images/current/logo.png"
-            if os.path.exists(logo_path):
-                logo_base64 = get_base64_image(logo_path)
+            # FIX BUG-N01: Use the unified LOGO_PATH constant instead of a duplicate local variable
+            if os.path.exists(LOGO_PATH):
+                logo_base64 = get_base64_image(LOGO_PATH)
                 st.markdown(f"""
                 <div style="text-align: center; padding: 10px;">
                     <img src="data:image/png;base64,{logo_base64}" class="sidebar-logo" alt="Aura Health">
