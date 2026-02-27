@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Aura Health - AI Assistant</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1392ec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101a22",
+                        "glass-border": "rgba(255, 255, 255, 0.2)",
+                        "glass-bg": "rgba(255, 255, 255, 0.7)",
+                        "glass-bg-dark": "rgba(16, 26, 34, 0.7)",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                    backdropBlur: {
+                        'xs': '2px',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for webkit browsers */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+        /* Glassmorphism utilities */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .dark .glass-panel {
+            background: rgba(16, 26, 34, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .glass-bubble-ai {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .dark .glass-bubble-ai {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen overflow-hidden flex">
+<!-- Sidebar -->
+<aside class="w-[300px] bg-white border-r border-slate-200 flex flex-col h-screen shrink-0 z-20">
+<div class="p-6">
+<div class="p-6">
+<div class="flex gap-3 items-center mb-8">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-10 shrink-0" data-alt="Aura Health Logo" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDSTHmtu4-ASAt3iEzZq6HU0MWbcF4clMZIKlV7zD4w1tVSRbv9lAmb3zo-P-c5KLg4TI0SJZ-3mDSRKDcNAhN4TkG2kZzufo7ash5G-tsHdVzo9PLD45leYErn_cg6nHq5n57wxUhNPdZOqM_dQREJksjKaidqA-0r-hSzr03EgVnuD-2ZNucs9Dhb6Hizuk2LehNzvGRRS1E0oX2rLcrtAIQjdcyNd68Ji0CdjbWUserG6nRCQRL3RNnPJjszUU1eMQux3xUkysPi");'></div>
+<div class="flex flex-col">
+<h1 class="text-slate-900 text-base font-bold leading-normal">Aura Health</h1>
+<p class="text-slate-500 text-xs font-normal leading-normal">Patient Portal</p>
+</div>
+</div>
+<div class="flex items-center gap-3 px-1">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-10 shrink-0 border border-slate-100" data-alt="User Avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCc1YL9iWvqcvMM3ctSQleQpfPQolycQ1iGR6G0GaiVNErPXUWMgQ75J9xrRd0q1hQNLLN1EI5g4kSoC4PaqHbd3F28RNB1pS4-uU5tf2ZCCypfdnU4cuWe6hiPnPXPEpE6uAKcLniFbTLAwm95Yt0HfKCGwRSjpCk7-rQdVtiR4RHXhFiBev8eWxHGPcD2fAjuSmOGml_Q8eGVdyRLbaKjADpwWSYEkWN7-ZB3myuf9kMOEqRZAsjjgKknijD286IaZf5BD10atysb");'></div>
+<div class="flex flex-col">
+<p class="text-slate-500 text-[11px] font-medium uppercase tracking-wider">Welcome back,</p>
+<p class="text-slate-900 text-sm font-bold">Sarah Jenkins</p>
+</div>
+</div>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto px-4 py-2 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary font-semibold transition-colors" href="#">
+<span class="material-symbols-outlined text-[22px] fill-current">smart_toy</span>
+<span class="text-sm">AI Assistant</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors group" href="#">
+<span class="material-symbols-outlined text-[22px] group-hover:text-primary">add_task</span>
+<span class="text-sm font-medium">Manual Booking</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors group" href="#">
+<span class="material-symbols-outlined text-[22px] group-hover:text-primary">person_add</span>
+<span class="text-sm font-medium">Visitor Check-in</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors group" href="#">
+<span class="material-symbols-outlined text-[22px] group-hover:text-primary">calendar_view_day</span>
+<span class="text-sm font-medium">Calendar View</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors group" href="#">
+<span class="material-symbols-outlined text-[22px] group-hover:text-primary">analytics</span>
+<span class="text-sm font-medium">Analytics Dashboard</span>
+</a>
+</nav>
+
+
+<div class="mt-auto">
+<div class="mx-4 mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Quick Stats</p>
+<div class="space-y-3">
+<div class="flex justify-between items-center">
+<span class="text-xs text-slate-600">Upcoming Appointments</span>
+<span class="text-xs font-bold text-primary">3</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-slate-600">Available Doctors</span>
+<span class="text-xs font-bold text-primary">12</span>
+</div>
+</div>
+</div>
+<div class="p-4 border-t border-slate-100 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors group" href="#">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+<span class="text-sm font-medium">Log Out</span>
+</a>
+</div>
+</div>
+
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col relative h-screen bg-gradient-to-br from-blue-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-[#0f172a]">
+<!-- Decorative Background Elements -->
+<div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+<div class="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl"></div>
+<div class="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-3xl"></div>
+</div>
+<!-- Chat Header -->
+<header class="h-20 shrink-0 px-8 flex items-center justify-between z-10 glass-panel border-b border-white/50 dark:border-white/5">
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<h2 class="text-slate-900 dark:text-white text-xl font-bold tracking-tight">Aura AI Assistant</h2>
+<span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-[10px] font-bold uppercase tracking-wider">Online</span>
+</div>
+<p class="text-slate-500 dark:text-slate-400 text-sm">Your 24/7 personal health concierge</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="size-10 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 transition-colors" title="Chat History">
+<span class="material-symbols-outlined">history</span>
+</button>
+<button class="size-10 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 transition-colors" title="Help">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+</div>
+</header>
+<!-- Chat Area -->
+<div class="flex-1 overflow-y-auto px-4 md:px-8 py-6 z-10 flex flex-col gap-6 scroll-smooth">
+<!-- Quick Actions -->
+<div class="w-full max-w-4xl mx-auto mb-4">
+<p class="text-slate-400 dark:text-slate-500 text-xs font-semibold uppercase tracking-wider mb-3 px-1">Suggested Actions</p>
+<div class="flex flex-wrap gap-3">
+<button class="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl hover:border-primary/50 hover:bg-blue-50/50 dark:hover:bg-primary/10 hover:shadow-md transition-all group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-[20px]">calendar_add_on</span>
+<span class="text-sm font-medium text-slate-700 dark:text-slate-200">Book appointment</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl hover:border-primary/50 hover:bg-blue-50/50 dark:hover:bg-primary/10 hover:shadow-md transition-all group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-[20px]">pill</span>
+<span class="text-sm font-medium text-slate-700 dark:text-slate-200">Refill prescription</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl hover:border-primary/50 hover:bg-blue-50/50 dark:hover:bg-primary/10 hover:shadow-md transition-all group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-[20px]">medical_services</span>
+<span class="text-sm font-medium text-slate-700 dark:text-slate-200">Check symptoms</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl hover:border-primary/50 hover:bg-blue-50/50 dark:hover:bg-primary/10 hover:shadow-md transition-all group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-[20px]">science</span>
+<span class="text-sm font-medium text-slate-700 dark:text-slate-200">Lab results</span>
+</button>
+</div>
+</div>
+<!-- Chat History -->
+<div class="w-full max-w-4xl mx-auto flex flex-col gap-6 pb-4">
+<!-- Date Separator -->
+<div class="flex items-center justify-center my-2">
+<span class="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-xs font-medium text-slate-500 dark:text-slate-400">Today, 9:41 AM</span>
+</div>
+<!-- AI Message -->
+<div class="flex gap-4 items-end max-w-[85%]">
+<div class="size-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center shrink-0 shadow-sm border border-white/50">
+<span class="material-symbols-outlined text-primary text-[24px]">smart_toy</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-xs text-slate-400 ml-1 font-medium">Aura AI</span>
+<div class="glass-bubble-ai rounded-2xl rounded-bl-none px-5 py-3.5 text-slate-800 dark:text-slate-100 text-[15px] leading-relaxed shadow-sm">
+<p>Hello Sarah! I'm Aura, your health assistant. I see you have an upcoming appointment next week. How can I help you today?</p>
+</div>
+</div>
+</div>
+<!-- User Message -->
+<div class="flex gap-4 items-end max-w-[85%] self-end flex-row-reverse">
+<div class="size-10 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden shrink-0 border-2 border-white dark:border-slate-600 shadow-sm">
+<div class="w-full h-full bg-cover bg-center" data-alt="User Avatar Small" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAEEu0etc7yPj8HcBR8GOc6vOsnk5OTF66zNJoUif2Vet_wcppL9z09CL7dnuVwNaUJ2KD_UL6hi1qQEMmmm5yP3zI1MSmuq2wiKfDogu5oOTuNheIXdCOlfeYzXWkm-vC6vNIftwgYT7iECk0GuE31WV4tqQ8ALoGquaJNpVyOfyE8gCifrn6qyAQ6GJFXojYhixSOV1hCn7afxrcZsAOGmNLKXhmS_goMfBQAS-9CTmurrt3SfGeEWyIfkxqzs3QVrpJ2hb80-RSX");'></div>
+</div>
+<div class="flex flex-col gap-1 items-end">
+<span class="text-xs text-slate-400 mr-1 font-medium">You</span>
+<div class="bg-primary rounded-2xl rounded-br-none px-5 py-3.5 text-white text-[15px] leading-relaxed shadow-md shadow-blue-500/10">
+<p>Hi! Actually, I need to reschedule my appointment with Dr. Smith. Something came up on Tuesday.</p>
+</div>
+</div>
+</div>
+<!-- AI Loading/Typing State -->
+<div class="flex gap-4 items-end max-w-[85%]">
+<div class="size-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center shrink-0 shadow-sm border border-white/50">
+<span class="material-symbols-outlined text-primary text-[24px]">smart_toy</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-xs text-slate-400 ml-1 font-medium">Aura AI</span>
+<div class="glass-bubble-ai rounded-2xl rounded-bl-none px-4 py-3 shadow-sm flex items-center gap-1.5 h-[46px]">
+<span class="w-2 h-2 bg-slate-400/60 rounded-full animate-bounce"></span>
+<span class="w-2 h-2 bg-slate-400/60 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+<span class="w-2 h-2 bg-slate-400/60 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Input Area (Sticky Bottom) -->
+<div class="p-6 pt-2 z-20">
+<div class="max-w-4xl mx-auto relative group">
+<div class="absolute inset-0 bg-primary/20 blur-xl rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-500"></div>
+<div class="bg-white/80 dark:bg-[#1e293b]/90 backdrop-blur-xl border border-white/60 dark:border-slate-700 shadow-lg dark:shadow-slate-900/50 rounded-2xl flex items-end p-2 gap-2 relative z-10">
+<button class="p-3 text-slate-400 hover:text-primary hover:bg-blue-50 dark:hover:bg-white/5 rounded-xl transition-colors shrink-0" title="Attach file">
+<span class="material-symbols-outlined text-[24px]">add_circle</span>
+</button>
+<div class="flex-1 py-3">
+<textarea class="w-full bg-transparent border-0 p-0 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-0 resize-none max-h-32 text-base" placeholder="Type your message here..." rows="1"></textarea>
+</div>
+<div class="flex items-center gap-1 pb-1">
+<button class="p-2 text-slate-400 hover:text-primary hover:bg-blue-50 dark:hover:bg-white/5 rounded-xl transition-colors shrink-0" title="Voice input">
+<span class="material-symbols-outlined text-[24px]">mic</span>
+</button>
+<button class="p-2 bg-primary text-white rounded-xl shadow-md shadow-blue-500/20 hover:bg-blue-600 transition-all active:scale-95 shrink-0" title="Send message">
+<span class="material-symbols-outlined text-[24px]">send</span>
+</button>
+</div>
+</div>
+<p class="text-center text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                    Aura can make mistakes. Please verify important medical information.
+                </p>
+</div>
+</div>
+</main>
+</body></html>
