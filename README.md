@@ -1,11 +1,13 @@
 # 🤖 AI Receptionist - Intelligent Healthcare Management System
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111.0+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18+-61DAFB.svg?logo=react&logoColor=white)](https://reactjs.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28.0-FF4B4B.svg)](https://streamlit.io/)
 [![LangChain](https://img.shields.io/badge/LangChain-0.2.0-green.svg)](https://www.langchain.com/)
+[![Groq](https://img.shields.io/badge/Groq-Llama%203-FC5A34.svg)](https://groq.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Code Quality](https://img.shields.io/badge/Code%20Quality-A+-brightgreen.svg)](https://github.com/Manojkumarw13/AI-Receptionist)
-
 An intelligent AI-powered receptionist system for healthcare facilities, built with LangGraph and Streamlit. Features automated appointment booking, visitor management, ML-based scheduling optimization, and comprehensive analytics.
 
 ## ✨ Features
@@ -33,6 +35,20 @@ An intelligent AI-powered receptionist system for healthcare facilities, built w
 - **Peak Hours Analysis**: Identify busy periods
 - **Doctor Performance**: Track appointments and ratings
 - **Revenue Tracking**: Specialty-wise revenue breakdown
+
+## 🏗️ Architecture
+
+The system is built on a modern stack featuring a React frontend, FastAPI backend, and an intelligent LangGraph agent.
+
+```mermaid
+graph TD
+    Client[React Frontend <br/> Tailwind, Vite] -->|REST API| API[FastAPI Backend]
+    API -->|SQLAlchemy| DB[(SQLite Database)]
+    API <-->|AI Tasks| Agent[LangGraph Agent]
+    Agent <-->|LLM Inference| Groq[Groq Llama 3]
+    Agent <-->|Tools| Tools[Appointment, Visitor,<br/>Analytics Tools]
+    Dashboard[Streamlit Dashboard <br/> Analytics] -->|SQL Queries| DB
+```
 
 ## 🚀 Quick Start
 
@@ -356,8 +372,8 @@ If you find this project useful, please consider giving it a star ⭐
 
 _Last Updated: February 2026_
 
-
 ---
+
 # APPENDIX: Consolidated Documentation
 
 ## API_DOCUMENTATION.md
@@ -744,8 +760,8 @@ async def liveness():
 **Version:** 1.0.0  
 **Status:** Documentation complete
 
-
 ---
+
 ## DATABASE_MIGRATIONS.md
 
 # Database Migration Guide
@@ -892,8 +908,8 @@ After applying migrations:
 **Last Updated:** 2026-02-17  
 **Status:** Migration strategy documented
 
-
 ---
+
 ## MEDIUM_PRIORITY_NOTES.md
 
 # Medium Priority Issues - Implementation Notes
@@ -1131,8 +1147,8 @@ All remaining issues are either:
 **Last Updated:** 2026-02-17  
 **Status:** Documented for future implementation
 
-
 ---
+
 ## PROJECT_STRUCTURE.md
 
 # AI Receptionist - Project Structure
@@ -1202,23 +1218,27 @@ AI_Receptionist_LangGraph-main/
 ## 🎯 Key Features
 
 ### Main Application (`streamlit_app.py`)
+
 - **AI Assistant**: Chat with AI receptionist for appointments
 - **Visitor Check-in**: Photo capture and registration
 - **Manual Booking**: Step-by-step appointment scheduling with ML predictions
 - **User Authentication**: Login/Register system
 
 ### Agent System (`caller_agent.py`)
+
 - LangGraph-based conversational AI
 - Tool calling for appointments, availability checks
 - Groq API integration for LLM
 
 ### Tools (`tools.py`)
+
 - Appointment booking
 - Availability checking with ML
 - QR code generation
 - Visitor registration
 
 ### ML Utilities (`ml_utils.py`)
+
 - Appointment time prediction
 - Optimal scheduling recommendations
 
@@ -1251,21 +1271,27 @@ streamlit run streamlit_app.py
 ## 🔧 Utility Scripts
 
 ### Download Images
+
 ```bash
 python scripts/download_images.py
 ```
+
 Downloads professional healthcare images from Unsplash.
 
 ### Download Logos
+
 ```bash
 python scripts/download_logos.py
 ```
+
 Downloads logo options from Flaticon.
 
 ### Remove Background
+
 ```bash
 python scripts/remove_bg.py
 ```
+
 Removes background from images using rembg library.
 
 ## 📝 Notes
@@ -1278,16 +1304,19 @@ Removes background from images using rembg library.
 ## 🎨 Customization
 
 ### Change Logo
+
 Replace `static/images/current/logo.png` with your preferred logo from `static/images/logos/`
 
 ### Change Background
+
 Replace `static/images/current/medical_technology.jpg` with any image from `static/images/backgrounds/`
 
 ### Update Styling
+
 Edit `static/styles.css` for custom colors, fonts, and effects
 
-
 ---
+
 ## SECURITY.md
 
 # Authentication and Security Documentation
@@ -1500,6 +1529,5 @@ else:
 
 **Last Updated:** 2026-02-17  
 **Version:** 1.0
-
 
 ---
