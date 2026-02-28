@@ -85,8 +85,9 @@ class DimUser(Base):
     
     user_id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
-    # FIXED Issue #32: Removed password_hash - analytics DB should NOT store passwords
-    # password_hash = Column(String(255), nullable=False)  # REMOVED for security
+    # Re-adding password_hash and role for operational use as DBs are merged
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(20), default="user", nullable=False)
     full_name = Column(String(255), nullable=False)
     phone = Column(String(20), nullable=True)
     age = Column(Integer, nullable=True)
@@ -97,6 +98,7 @@ class DimUser(Base):
     state = Column(String(100), nullable=True)
     pincode = Column(String(10), nullable=True)
     emergency_contact = Column(String(20), nullable=True)
+    last_login = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     is_active = Column(Boolean, default=True)
     

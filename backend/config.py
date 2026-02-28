@@ -29,8 +29,9 @@ ALLOWED_IMAGE_TYPES = {
 }
 
 # Database settings
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///receptionist.db")
-STAR_DATABASE_URL = os.getenv("STAR_DATABASE_URL", "sqlite:///receptionist_star.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///receptionist_star.db")
+# Using the single database for everything
+STAR_DATABASE_URL = DATABASE_URL
 
 # Connection pooling settings (FIXED Issue #29)
 DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))

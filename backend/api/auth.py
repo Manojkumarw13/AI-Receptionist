@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy.orm import Session as DBSession
 
 from database.connection import SessionLocal
@@ -16,21 +16,29 @@ from database.models import User
 from api.schemas import TokenData
 
 # ── Secrets ───────────────────────────────────────────────────────────────────
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-me-before-production-!@#$%^&*")
+# Fix #3: Raise at startup if JWT_SECRET_KEY is missing to prevent the app from
+# running with a known insecure fallback. Add JWT_SECRET_KEY to your .env file.
+_jwt_secret = os.getenv("JWT_SECRET_KEY")
+if not _jwt_secret:
+    raise EnvironmentError(
+        "JWT_SECRET_KEY is not set. Please add it to backend/.env. "
+        "Generate a strong key with: python -c \"import secrets; print(secrets.token_hex(32))\""
+    )
+SECRET_KEY = _jwt_secret
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
 
-# ── Password hashing ──────────────────────────────────────────────────────────
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# ── Password hashing (using bcrypt directly — passlib has version conflicts) ─
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
 
 def hash_password(plain: str) -> str:
-    return pwd_context.hash(plain)
+    return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
 
 
 # ── Token helpers ─────────────────────────────────────────────────────────────

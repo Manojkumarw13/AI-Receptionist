@@ -8,6 +8,11 @@ Run with:
 import sys
 import os
 
+# CRITICAL: Load .env BEFORE any project imports that read environment variables
+# (e.g. auth.py reads JWT_SECRET_KEY at import time)
+from dotenv import load_dotenv
+load_dotenv()
+
 # Ensure the backend directory is on the path so absolute imports work
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -73,9 +78,12 @@ app.include_router(chat_router)
 
 @app.on_event("startup")
 def startup_event():
-    """Initialize databases on startup."""
+    """Initialize databases and seed with default data on startup."""
     init_db()
     init_star_db()
+    # Seed the main DB with doctors & disease-specialty mappings if empty
+    from scripts.seed_main import seed_if_empty
+    seed_if_empty()
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ from datetime import datetime, date, time as time_type
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.pool import NullPool  # FIX BUG-33: NullPool is safer than StaticPool for multi-user Streamlit apps
-from database.models import Base
+from database.models_star import Base as StarBase  # Using Star Schema models for all operations
 import logging
 
 # Configure logging
@@ -54,7 +54,8 @@ StarSession = scoped_session(StarSessionLocal)
 def init_db():
     """Initialize the original database."""
     try:
-        Base.metadata.create_all(bind=engine)
+        # We only use StarBase now
+        StarBase.metadata.create_all(bind=engine)
         logger.info("Database tables created successfully")
         return True
     except Exception as e:
@@ -103,35 +104,14 @@ def check_star_db_exists():
 
 
 def get_db_stats():
-    """Get statistics about the original database."""
-    from .models import Base, User, Doctor, Appointment, DiseaseSpecialty, Visitor
-    
-    session = get_session()
-    try:
-        stats = {
-            'users': session.query(User).count(),
-            'doctors': session.query(Doctor).count(),
-            'appointments': session.query(Appointment).count(),
-            'disease_specialties': session.query(DiseaseSpecialty).count(),
-            'visitors': session.query(Visitor).count()
-        }
-        return stats
-    except Exception as e:
-        logger.error(f"Error getting database stats: {e}")
-        return {}
-    finally:
-        session.close()
-
-
-def get_star_db_stats():
-    """Get statistics about the star schema database."""
+    """Get statistics about the single star schema database."""
     try:
         from database.models_star import (
             DimDate, DimTime, DimDoctor, DimUser, DimDisease, DimVisitor,
             FactAppointment, FactVisitorCheckIn
         )
         
-        session = get_star_session()
+        session = get_session()
         try:
             stats = {
                 'dim_date': session.query(DimDate).count(),
@@ -149,6 +129,11 @@ def get_star_db_stats():
     except Exception as e:
         logger.error(f"Error getting star database stats: {e}")
         return {}
+
+
+def get_star_db_stats():
+    # Deprecated: points to get_db_stats
+    return get_db_stats()
 
 
 # ==================== STAR SCHEMA HELPER FUNCTIONS ====================

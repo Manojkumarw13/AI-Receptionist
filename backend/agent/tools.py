@@ -524,7 +524,7 @@ def cancel_appointment(appointment_year: int, appointment_month: int, appointmen
     """
     session = get_session()
     try:
-        # FIXED Issue #48: Create timezone-aware datetime properly
+        # FIXED Issue #48: Create timezone-aware datetime for validation
         tz = get_timezone()
         time = tz.localize(datetime.datetime(
             appointment_year,
@@ -535,10 +535,15 @@ def cancel_appointment(appointment_year: int, appointment_month: int, appointmen
             0,  # second
             0   # microsecond
         ))
+
+        # Fix #2: Strip timezone before querying SQLite — appointments are stored as naive
+        # datetimes (SQLite does not support tz-aware). A tz-aware != naive comparison
+        # would silently fail to match any row, making cancellation impossible.
+        time_naive = time.replace(tzinfo=None)
         
         appointment = session.query(Appointment).filter(
             and_(
-                Appointment.appointment_time == time,
+                Appointment.appointment_time == time_naive,
                 Appointment.user_email == user_email
             )
         ).first()
@@ -560,12 +565,9 @@ def cancel_appointment(appointment_year: int, appointment_month: int, appointmen
             else:
                 logger.warning(f"Appointment cancelled but email failed for: {user_email}")
             
-            # FIX BUG-N04: Return consistent dict type (was returning a plain string here,
-            # but a dict on error — breaking any caller that checks result["success"])
             return {"success": True, "message": f"Appointment at {time} cancelled successfully."}
         else:
-            logger.warning(f"No appointment found for user {user_email} at: {time}")
-            # FIX BUG-N04: Return consistent dict type (was returning a plain string here)
+            logger.warning(f"No appointment found for user {user_email} at: {time_naive}")
             return {"success": False, "error": "NOT_FOUND", "message": f"No appointment found at {time} for your account"}
     except Exception as e:
         session.rollback()
