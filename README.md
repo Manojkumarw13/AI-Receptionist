@@ -55,6 +55,7 @@ graph TD
 ### Prerequisites
 
 - Python 3.9 or higher
+- Node.js 18+ (for frontend)
 - Git
 - Groq API key ([Get one here](https://console.groq.com/))
 
@@ -67,9 +68,12 @@ git clone https://github.com/Manojkumarw13/AI-Receptionist.git
 cd AI-Receptionist
 ```
 
-2. **Create virtual environment**
+#### Backend Setup
+
+2. **Navigate to the backend directory and create a virtual environment**
 
 ```bash
+cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
@@ -93,58 +97,59 @@ EMAIL_PASSWORD=your_app_password  # Optional
 TIMEZONE=Asia/Kolkata  # Optional
 ```
 
-5. **Initialize databases**
+5. **Run the backend application**
 
 ```bash
-python database/connection.py
-python scripts/populate_data.py  # Optional: Load sample data
+uvicorn main:app --reload --port 8000
 ```
 
-6. **Run the application**
+The FastAPI backend will start at `http://localhost:8000`
+API documentation is available at `http://localhost:8000/docs`
+
+#### Frontend Setup
+
+1. **Open a new terminal window, navigate to the frontend directory**
 
 ```bash
-streamlit run app.py
+cd frontend
 ```
 
-The application will open in your browser at `http://localhost:8501`
+2. **Install node dependencies**
+
+```bash
+npm install
+```
+
+3. **Run the frontend application**
+
+```bash
+npm run dev
+```
+
+The application will open in your browser at `http://localhost:5173`
 
 ## 📁 Project Structure
 
 ```
 AI-Receptionist/
-├── agent/                      # AI agent and tools
-│   ├── __init__.py
-│   ├── graph.py               # LangGraph workflow
-│   └── tools.py               # Appointment & visitor tools
-├── database/                   # Database models and connections
-│   ├── __init__.py
-│   ├── connection.py          # Database setup
-│   ├── models.py              # Operational schema
-│   └── models_star.py         # Analytics star schema
-├── ui/                        # UI components
-│   ├── __init__.py
-│   └── dashboard.py           # Analytics dashboard
-├── utils/                     # Utility modules
-│   ├── __init__.py
-│   ├── logging_config.py      # Centralized logging
-│   ├── ml_predictor.py        # ML scheduling
-│   └── timezone_utils.py      # Timezone handling
-├── scripts/                   # Setup scripts
-│   ├── __init__.py
-│   └── populate_data.py       # Sample data loader
-├── static/                    # Static assets
-│   └── images/                # QR codes, visitor photos
-├── tests/                     # Test suite
-│   └── test_star_schema.py
-├── app.py                     # Main Streamlit app
-├── config.py                  # Configuration settings
-├── requirements.txt           # Python dependencies
-├── .env.example              # Environment template
-├── .gitignore                # Git ignore rules
-├── API_DOCUMENTATION.md      # API reference
-├── DATABASE_MIGRATIONS.md    # Migration guide
-├── SECURITY.md               # Security documentation
-└── README.md                 # This file
+├── backend/                    # FastAPI backend
+│   ├── agent/                  # LangGraph agent workflows
+│   ├── api/                    # REST API routes
+│   ├── database/               # Database models and connections
+│   ├── data/                   # Initial data files
+│   ├── utils/                  # Utility modules
+│   ├── scripts/                # Setup & utility scripts
+│   ├── tests/                  # Test suite
+│   ├── main.py                 # FastAPI application entry point
+│   ├── config.py               # Configuration settings
+│   └── requirements.txt        # Python dependencies
+├── frontend/                   # React frontend (Vite)
+│   ├── public/                 # Static assets
+│   ├── src/                    # React components, pages, and hooks
+│   ├── package.json            # Node.js dependencies
+│   └── vite.config.js          # Vite configuration
+├── requirements.txt            # Root dependencies
+└── README.md                   # This file
 ```
 
 ## 🎨 Usage
