@@ -54,8 +54,8 @@ StarSession = scoped_session(StarSessionLocal)
 def init_db():
     """Initialize the original database."""
     try:
-        # We only use StarBase now
-        StarBase.metadata.create_all(bind=engine)
+        from database.models import Base
+        Base.metadata.create_all(bind=engine)
         logger.info("Database tables created successfully")
         return True
     except Exception as e:

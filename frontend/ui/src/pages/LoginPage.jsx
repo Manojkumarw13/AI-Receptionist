@@ -142,7 +142,7 @@ const LoginPage = () => {
         <div className="mt-8 text-center text-sm text-white/60">
            {isLogin ? "Don't have an account?" : "Already have an account?"}
            <button 
-             onClick={() => setIsLogin(!isLogin)}
+             onClick={() => { setIsLogin(!isLogin); setError(null); }}
              className="ml-2 text-primary hover:text-white transition-colors underline-offset-4 hover:underline focus:outline-none"
            >
              {isLogin ? 'Register now.' : 'Sign in.'}

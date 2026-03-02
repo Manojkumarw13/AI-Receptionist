@@ -37,18 +37,21 @@ def chat(
     behalf of the authenticated user.
     """
     try:
+        from langchain_core.messages import HumanMessage, AIMessage
         from agent.graph import caller_app  # lazy import
         messages = []
         for msg in (payload.history or []):
-            messages.append({"role": msg.role, "content": msg.content})
-        messages.append({
-            "role": "user",
-            "content": (
-                f"[Context: User email is {current_user.email}, "
-                f"Name is {current_user.name or 'Patient'}]\n"
-                f"{payload.message}"
-            ),
-        })
+            if msg.role == "user":
+                messages.append(HumanMessage(content=msg.content))
+            else:
+                messages.append(AIMessage(content=msg.content))
+                
+        user_context_message = (
+            f"[Context: User email is {current_user.email}, "
+            f"Name is {current_user.name or 'Patient'}]\n"
+            f"{payload.message}"
+        )
+        messages.append(HumanMessage(content=user_context_message))
 
         result = caller_app.invoke({"messages": messages})
         reply_messages = result.get("messages", [])
@@ -60,4 +63,6 @@ def chat(
 
         return {"reply": reply_text}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Agent error: {str(e)}")

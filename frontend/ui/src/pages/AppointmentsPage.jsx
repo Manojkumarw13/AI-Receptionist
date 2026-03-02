@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, User, Stethoscope, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
-import { useAuth } from '../context/AuthContext';
 
 const statusColors = {
   Scheduled: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
@@ -12,7 +11,6 @@ const statusColors = {
 };
 
 const AppointmentsPage = () => {
-  const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
