@@ -38,7 +38,7 @@ An intelligent AI-powered receptionist system for healthcare facilities, built w
 
 ## 🏗️ Architecture
 
-The system is built on a modern stack featuring a React frontend, FastAPI backend, and an intelligent LangGraph agent.
+The system is built on a modern stack featuring a **React + Vite** frontend with **Tailwind CSS**, a **FastAPI** REST backend, and an intelligent **LangGraph** agent.
 
 ```mermaid
 graph TD
@@ -134,21 +134,41 @@ The application will open in your browser at `http://localhost:5173`
 AI-Receptionist/
 ├── backend/                    # FastAPI backend
 │   ├── agent/                  # LangGraph agent workflows
-│   ├── api/                    # REST API routes
+│   ├── api/                    # REST API routes & schemas
+│   │   ├── routes/             # Endpoint modules
+│   │   │   ├── appointment_routes.py
+│   │   │   ├── auth_routes.py
+│   │   │   ├── availability_routes.py
+│   │   │   ├── chat_routes.py
+│   │   │   ├── doctor_routes.py
+│   │   │   └── visitor_routes.py
+│   │   ├── auth.py             # Authentication logic
+│   │   └── schemas.py          # Pydantic models
 │   ├── database/               # Database models and connections
 │   ├── data/                   # Initial data files
-│   ├── utils/                  # Utility modules
+│   ├── utils/                  # Utility modules (ML, logging, email)
 │   ├── scripts/                # Setup & utility scripts
 │   ├── tests/                  # Test suite
 │   ├── main.py                 # FastAPI application entry point
 │   ├── config.py               # Configuration settings
 │   └── requirements.txt        # Python dependencies
-├── frontend/                   # React frontend (Vite)
-│   ├── public/                 # Static assets
-│   ├── src/                    # React components, pages, and hooks
-│   ├── package.json            # Node.js dependencies
-│   └── vite.config.js          # Vite configuration
+├── frontend/                   # React frontend
+│   └── ui/                     # Vite + React app
+│       ├── src/
+│       │   ├── pages/          # Page components
+│       │   │   ├── LoginPage.jsx
+│       │   │   ├── AppointmentsPage.jsx
+│       │   │   ├── AiAssistantPage.jsx
+│       │   │   └── VisitorCheckInPage.jsx
+│       │   ├── components/     # Reusable UI components
+│       │   ├── context/        # React context providers
+│       │   ├── services/       # API service layer
+│       │   ├── layouts/        # Layout components
+│       │   └── App.jsx         # Root component with routing
+│       ├── package.json        # Node.js dependencies
+│       └── vite.config.js      # Vite configuration
 ├── requirements.txt            # Root dependencies
+├── LICENSE                     # MIT License
 └── README.md                   # This file
 ```
 
@@ -189,18 +209,21 @@ AI-Receptionist/
 
 ### Backend
 
+- **FastAPI**: High-performance Python REST API framework
 - **LangChain & LangGraph**: AI agent orchestration
 - **Groq**: LLM inference (Llama 3 70B)
 - **SQLAlchemy**: ORM and database management
-- **SQLite**: Dual database (operational + analytics)
+- **SQLite**: Dual database (operational + analytics star schema)
 - **bcrypt**: Password hashing
+- **Pydantic**: Request/response validation
 - **pytz**: Timezone handling
 
 ### Frontend
 
-- **Streamlit**: Web framework
-- **Plotly**: Interactive visualizations
-- **OpenCV**: Image processing
+- **React 18**: Component-based UI framework
+- **Vite**: Fast build tool and dev server
+- **Tailwind CSS**: Utility-first CSS framework
+- **React Router**: Client-side routing
 
 ### ML & AI
 
@@ -340,15 +363,22 @@ For support, email manojkumar@example.com or open an issue on GitHub.
 
 ## 🗺️ Roadmap
 
+### ✅ Completed
+
+- [x] REST API with FastAPI
+- [x] React frontend with Vite
+- [x] User authentication (login/register)
+- [x] AI-powered appointment booking
+- [x] Star schema analytics database
+- [x] ML-based scheduling optimization
+
 ### Upcoming Features
 
-- [ ] REST API with FastAPI
 - [ ] Email notification queue
 - [ ] SMS reminders
 - [ ] Multi-language support
-- [ ] Mobile app
+- [ ] Mobile app (React Native)
 - [ ] Voice assistant integration
-- [ ] Advanced ML predictions
 - [ ] Appointment reminder system
 
 ### Performance Improvements
@@ -361,7 +391,11 @@ For support, email manojkumar@example.com or open an issue on GitHub.
 
 ### Recent Updates (March 2026)
 
-- **Authentication Verified**: Successfully tested and verified the AI Receptionist Login and Registration flow, including post-login React Router redirects to the Dashboard.
+- **Full-Stack Overhaul**: Migrated frontend from Streamlit to React 18 + Vite with Tailwind CSS
+- **FastAPI Backend**: Implemented complete REST API with modular route handlers for appointments, auth, chat, doctors, visitors, and availability
+- **Authentication Verified**: Successfully tested and verified the Login and Registration flow, including post-login React Router redirects to the Dashboard
+- **Star Schema Analytics**: Added dual-database architecture with star schema for advanced analytics and reporting
+- **ML Scheduling**: Integrated ML-based appointment prediction and scheduling optimization
 
 ## 📊 Project Stats
 
@@ -379,7 +413,7 @@ If you find this project useful, please consider giving it a star ⭐
 
 **Made with ❤️ by Manoj Kumar**
 
-_Last Updated: February 2026_
+_Last Updated: March 2026_
 
 ---
 
