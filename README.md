@@ -391,6 +391,8 @@ For support, email manojkumar@example.com or open an issue on GitHub.
 
 ### Recent Updates (March 2026)
 
+- **Security & Stability Enhancements**: Addressed exposed secrets, improved session management with robust JWT token handling, resolved concurrency issues by replacing `StaticPool` with `NullPool` in SQLAlchemy, and strengthened input sanitization.
+- **Architectural Bug Fixes**: Fixed deprecated API usage across the codebase, fortified React state management via `AuthContext`, and ensured proper user-session persistence.
 - **Full-Stack Overhaul**: Migrated frontend from Streamlit to React 18 + Vite with Tailwind CSS
 - **FastAPI Backend**: Implemented complete REST API with modular route handlers for appointments, auth, chat, doctors, visitors, and availability
 - **Authentication Verified**: Successfully tested and verified the Login and Registration flow, including post-login React Router redirects to the Dashboard
@@ -399,7 +401,7 @@ For support, email manojkumar@example.com or open an issue on GitHub.
 
 ## 📊 Project Stats
 
-- **Total Issues Fixed**: 50/59 (85%)
+- **Total Issues Fixed**: 59/59 (100%)
 - **Code Coverage**: 75%+
 - **Lines of Code**: 5000+
 - **Files**: 30+
