@@ -1,16 +1,32 @@
-import React, { useState } from 'react';
-import { UserPlus, Building2, FileText, Camera, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { UserPlus, Building2, FileText, Camera, Loader2, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../services/api';
 
 const VisitorCheckInPage = () => {
   const [form, setForm] = useState({ name: '', purpose: '', company: '' });
   const [image, setImage] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [status, setStatus] = useState(null); // 'loading' | 'success' | 'error'
   const [message, setMessage] = useState('');
+  const fileInputRef = useRef(null);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImage(file);
+      setPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const clearImage = () => {
+    setImage(null);
+    setPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmit = async (e) => {
@@ -34,7 +50,7 @@ const VisitorCheckInPage = () => {
       setStatus('success');
       setMessage(res.data.message || 'Visitor checked in successfully!');
       setForm({ name: '', purpose: '', company: '' });
-      setImage(null);
+      clearImage();
     } catch (err) {
       setStatus('error');
       setMessage(err.response?.data?.detail || 'Check-in failed. Please try again.');
@@ -95,16 +111,30 @@ const VisitorCheckInPage = () => {
 
           {/* Photo upload */}
           <div className="relative">
-            <label className="flex items-center gap-3 glass-input w-full cursor-pointer text-white/50 hover:text-white/70 transition-colors">
-              <Camera className="w-5 h-5 shrink-0" />
-              <span className="truncate">{image ? image.name : 'Upload photo (optional)'}</span>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) => setImage(e.target.files[0] || null)}
-              />
-            </label>
+            {!preview ? (
+              <label className="flex items-center gap-3 glass-input w-full cursor-pointer text-white/50 hover:text-white/70 transition-colors">
+                <Camera className="w-5 h-5 shrink-0" />
+                <span>Upload photo (optional)</span>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+              </label>
+            ) : (
+              <div className="relative w-full h-32 rounded-xl overflow-hidden border border-white/10">
+                <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={clearImage}
+                  className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white hover:bg-black/70"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Submit */}

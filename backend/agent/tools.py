@@ -291,14 +291,20 @@ def register_visitor(name: str, purpose: str, company: str = None, image_data: b
             try:
                 # Create images directory if it doesn't exist
                 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-                
+
                 # Generate unique filename
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                image_path = str(IMAGES_DIR / f"visitor_{timestamp}.jpg")
-                
+                img_filename = f"visitor_{timestamp}.jpg"
+                abs_image_path = str(IMAGES_DIR / img_filename)
+
                 # Save image
-                with open(image_path, "wb") as f:
+                with open(abs_image_path, "wb") as f:
                     f.write(image_data)
+
+                # Store a relative URL — absolute OS paths are not accessible
+                # from the browser. The /static/images mount in main.py serves
+                # IMAGES_DIR over HTTP.
+                image_path = f"/static/images/{img_filename}"
             except Exception as e:
                 logger.error(f"Failed to save visitor image: {e}")
                 return f"Failed to save visitor image: {e}"
@@ -479,11 +485,13 @@ def book_appointment(appointment_year: int, appointment_month: int, appointment_
         # Use current time for timestamp to avoid timezone issues
         timestamp = int(time_module.time())
         qr_filename = f"appointment_{appointment_id}_{timestamp}.png"
-        qr_path = str(IMAGES_DIR / qr_filename)
-        qr_res = generate_qr_code(f"Appointment ID: {appointment_id}, Doctor: {doctor_name}, Time: {time}", qr_path)
-        
-        # Update appointment with QR code path
-        new_appointment.qr_code_path = qr_path
+        qr_abs_path = str(IMAGES_DIR / qr_filename)
+        qr_res = generate_qr_code(f"Appointment ID: {appointment_id}, Doctor: {doctor_name}, Time: {time}", qr_abs_path)
+
+        # Store a relative URL so the React frontend can fetch it over HTTP.
+        # FastAPI serves IMAGES_DIR at /static/images (see main.py mount).
+        # Storing the absolute OS path would be inaccessible from the browser.
+        new_appointment.qr_code_path = f"/static/images/{qr_filename}"
         session.commit()
         
         # Send notification email (non-blocking, won't rollback transaction if fails)

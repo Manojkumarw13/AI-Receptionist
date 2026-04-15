@@ -52,8 +52,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: DBSession = Depe
         raise HTTPException(status_code=400, detail="Account is deactivated")
 
     # Update last_login
-    from datetime import datetime
-    user.last_login = datetime.utcnow()
+    from datetime import datetime, timezone
+    user.last_login = datetime.now(timezone.utc)
     db.commit()
 
     token = create_access_token(

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, User, Stethoscope, Loader2, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, Stethoscope, Loader2, AlertCircle, X, QrCode } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 
@@ -30,6 +30,23 @@ const AppointmentsPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const cancelAppointment = async (id) => {
+    try {
+      await api.post(`/appointments/${id}/cancel`);
+      fetchAppointments();
+    } catch (err) {
+      alert('Failed to cancel appointment');
+    }
+  };
+
+  const formatDateTime = (dateString) => {
+    const date = new Date(dateString + 'Z');
+    return {
+      date: date.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      time: date.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
+    };
   };
 
   if (loading) {
@@ -65,39 +82,54 @@ const AppointmentsPage = () => {
       ) : (
         <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
           <AnimatePresence>
-            {appointments.map((apt, idx) => (
-              <motion.div
-                key={apt.id || idx}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className="glass-panel p-4 flex items-center gap-4"
-              >
-                <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                  <Stethoscope className="w-5 h-5 text-primary" />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium truncate">{apt.doctor_name}</p>
-                  <p className="text-white/50 text-sm truncate">{apt.disease}</p>
-                </div>
-
-                <div className="text-right shrink-0">
-                  <div className="flex items-center gap-1.5 text-white/60 text-sm">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>{new Date(apt.appointment_time).toLocaleDateString()}</span>
+            {appointments.map((apt, idx) => {
+              const { date, time } = formatDateTime(apt.appointment_time);
+              return (
+                <motion.div
+                  key={apt.id || idx}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className="glass-panel p-4 flex items-center gap-4"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                    <Stethoscope className="w-5 h-5 text-primary" />
                   </div>
-                  <div className="flex items-center gap-1.5 text-white/40 text-xs mt-1">
-                    <Clock className="w-3 h-3" />
-                    <span>{new Date(apt.appointment_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  </div>
-                </div>
 
-                <span className={`text-xs font-medium px-3 py-1 rounded-full border ${statusColors[apt.status] || 'text-white/50 bg-white/5 border-white/10'}`}>
-                  {apt.status}
-                </span>
-              </motion.div>
-            ))}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-medium truncate">{apt.doctor_name}</p>
+                    <p className="text-white/50 text-sm truncate">{apt.disease}</p>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <div className="flex items-center gap-1.5 text-white/60 text-sm">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>{date}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-white/40 text-xs mt-1">
+                      <Clock className="w-3 h-3" />
+                      <span>{time}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 items-end">
+                    <span className={`text-xs font-medium px-3 py-1 rounded-full border ${statusColors[apt.status] || 'text-white/50 bg-white/5 border-white/10'}`}>
+                      {apt.status}
+                    </span>
+                    {apt.status === 'Scheduled' && (
+                      <div className="flex gap-2">
+                        <button className="p-1.5 text-white/40 hover:text-white transition-colors">
+                          <QrCode className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => cancelAppointment(apt.id)} className="p-1.5 text-red-400/60 hover:text-red-400 transition-colors">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </div>
       )}
