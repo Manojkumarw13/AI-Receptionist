@@ -32,20 +32,27 @@ const AppointmentsPage = () => {
     }
   };
 
+  // FIX #1: Use api.delete() to match the backend DELETE /api/appointments/{id} route.
+  // The old code used api.post('/appointments/${id}/cancel') which returned 404/405.
   const cancelAppointment = async (id) => {
+    if (!window.confirm('Are you sure you want to cancel this appointment?')) return;
     try {
-      await api.post(`/appointments/${id}/cancel`);
+      await api.delete(`/appointments/${id}`);
       fetchAppointments();
     } catch (err) {
-      alert('Failed to cancel appointment');
+      alert(err.response?.data?.detail || 'Failed to cancel appointment.');
     }
   };
 
+  // FIX #3: Do NOT append 'Z' to the dateString.
+  // The backend stores naive local timestamps (Asia/Kolkata, no tzinfo).
+  // Appending 'Z' coerces them to UTC then re-shifts by +05:30, causing
+  // a ~5.5-hour display error (e.g. 10:30 AM renders as 04:00 PM).
   const formatDateTime = (dateString) => {
-    const date = new Date(dateString + 'Z');
+    const date = new Date(dateString);
     return {
-      date: date.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
-      time: date.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
+      date: date.toLocaleDateString('en-IN'),
+      time: date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
     };
   };
 

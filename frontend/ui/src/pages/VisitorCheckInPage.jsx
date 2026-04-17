@@ -43,9 +43,12 @@ const VisitorCheckInPage = () => {
       if (form.company) data.append('company', form.company);
       if (image) data.append('image', image);
 
-      const res = await api.post('/visitors', data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      // FIX #2: Do NOT set Content-Type manually for FormData.
+      // Axios inspects the body and automatically generates the correct
+      // 'multipart/form-data; boundary=<hash>' header. Setting it manually
+      // strips the required boundary string, causing FastAPI to reject
+      // the request with a 422 Unprocessable Entity error.
+      const res = await api.post('/visitors', data);
 
       setStatus('success');
       setMessage(res.data.message || 'Visitor checked in successfully!');
