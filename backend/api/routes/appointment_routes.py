@@ -9,7 +9,7 @@ from typing import List
 
 from database.models import User, Appointment
 from api.schemas import AppointmentCreate, AppointmentOut
-from api.auth import get_db, get_current_user
+from api.auth import get_db, get_current_user, get_current_admin
 
 router = APIRouter(prefix="/api/appointments", tags=["Appointments"])
 
@@ -91,9 +91,10 @@ def delete_appointment(
 
 @router.get("/all", response_model=List[AppointmentOut])
 def list_all_appointments(
+    current_user: User = Depends(get_current_admin),
     db: DBSession = Depends(get_db),
 ):
-    """Admin: list all non-deleted appointments."""
+    """Admin/Doctor only: list all non-deleted appointments."""
     appointments = (
         db.query(Appointment)
         .filter(Appointment.is_deleted == False)

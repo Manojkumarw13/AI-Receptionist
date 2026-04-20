@@ -105,10 +105,14 @@ def get_next_available_appointment():
     
     FIX BUG-13: Now respects WORKING_HOURS_START/END from config so it
     never suggests slots outside working hours or on weekends.
+    FIX BUG-N19: Use now_with_timezone() for consistency with the rest of
+    tools.py; naive datetime.datetime.now() could cause incorrect 7-day
+    limit comparisons when other code paths produce tz-aware datetimes.
     """
     session = get_session()
     try:
-        current_time = datetime.datetime.now()
+        # FIX BUG-N19: Use timezone-aware now() for consistency
+        current_time = now_with_timezone()
         # Align to next 30 min slot
         minutes_to_add = 30 - current_time.minute % 30
         if minutes_to_add == 30:
@@ -140,9 +144,13 @@ def get_next_available_appointment():
         start_time = advance_to_working_hours(start_time)
         
         while True:
-            # Check if slot is booked in database
+            # FIX BUG-N19 (consistency with BUG-N10): strip tzinfo before
+            # querying the DB — appointments are stored as naive datetimes in
+            # SQLite; comparing a tz-aware datetime against a naive column will
+            # always miss, making all slots appear available.
+            start_time_naive = start_time.replace(tzinfo=None)
             is_booked = session.query(Appointment).filter(
-                Appointment.appointment_time == start_time,
+                Appointment.appointment_time == start_time_naive,
                 Appointment.is_deleted == False  # FIX: also ignore soft-deleted
             ).first() is not None
             

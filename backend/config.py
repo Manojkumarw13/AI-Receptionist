@@ -34,6 +34,11 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///receptionist_star.db")
 STAR_DATABASE_URL = DATABASE_URL
 
 # Connection pooling settings (FIXED Issue #29)
+# FIX BUG-N22: These constants are defined for future use.
+# They are currently UNUSED because NullPool (database/connection.py) ignores
+# pool size settings.  If the project switches to QueuePool (e.g. for
+# production PostgreSQL), restore them via:
+#   engine = create_engine(DATABASE_URL, pool_size=DB_POOL_SIZE, ...)
 DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
 DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
 DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))

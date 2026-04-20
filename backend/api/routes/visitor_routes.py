@@ -2,13 +2,13 @@
 Visitor check-in routes.
 Uses lazy imports of agent tools to avoid native module crashes at startup.
 """
-from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException, Query
 from typing import Optional, List
 from sqlalchemy.orm import Session as DBSession
 
 from database.models import Visitor, User
 from api.schemas import VisitorOut
-from api.auth import get_db
+from api.auth import get_db, get_current_user
 
 router = APIRouter(prefix="/api/visitors", tags=["Visitors"])
 
@@ -23,9 +23,10 @@ async def check_in_visitor(
     purpose: str = Form(...),
     company: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
+    current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_db),
 ):
-    """Register a walk-in visitor with optional photo upload."""
+    """Register a walk-in visitor with optional photo upload. Requires authentication."""
     from agent.tools import register_visitor  # lazy import
 
     image_bytes = None
@@ -55,13 +56,17 @@ async def check_in_visitor(
 
 @router.get("", response_model=List[VisitorOut])
 def list_visitors(
+    current_user: User = Depends(get_current_user),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=200, description="Max records to return"),
     db: DBSession = Depends(get_db),
 ):
-    """List all visitor check-ins, most recent first."""
+    """List visitor check-ins (most recent first). Requires authentication."""
     visitors = (
         db.query(Visitor)
         .order_by(Visitor.check_in_time.desc())
-        .limit(200)
+        .offset(skip)
+        .limit(limit)
         .all()
     )
     return visitors
