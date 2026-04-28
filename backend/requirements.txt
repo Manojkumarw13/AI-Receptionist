@@ -1,14 +1,9 @@
-# AI Receptionist — Root requirements file
-# This installs backend production dependencies.
-# BUG-15 FIX: Removed unused packages:
-#   - streamlit (migrated to React frontend)
-#   - opencv-python (unused in codebase)
-#   - pyttsx3 (unused)
-#   - SpeechRecognition (unused)
-#   - ipykernel (dev-only tool)
-#   - langchain_openai (project uses Groq, not OpenAI)
-#   - plotly (only used in old Streamlit dashboard)
-#   - passlib (using bcrypt directly due to version conflicts)
+# AI Receptionist — Backend Requirements
+# Install from this file when working inside the backend/ directory:
+#   pip install -r requirements.txt
+#
+# BUG-25 FIX: Created this backend-specific requirements file to match README
+# installation instructions: "cd backend && pip install -r requirements.txt"
 
 # ── Core LangChain / AI ───────────────────────────────────────────────────────
 langgraph==0.2.0

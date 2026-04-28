@@ -290,35 +290,40 @@ python -m pytest --cov=. tests/
 
 ## 📝 API Documentation
 
-See [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for detailed API reference including:
+The live interactive API docs are available at:
+- **Swagger UI**: `http://127.0.0.1:8000/docs` (when backend is running)
+- **ReDoc**: `http://127.0.0.1:8000/redoc`
 
-- Tool descriptions and parameters
-- Response formats and error codes
-- Authentication flow
-- Database schema details
+Key endpoint groups:
+- `POST /api/auth/login` — Authenticate and get JWT token
+- `GET /api/appointments` — List user appointments
+- `POST /api/appointments` — Book new appointment
+- `DELETE /api/appointments/{id}` — Cancel appointment
+- `POST /api/visitors` — Visitor check-in
+- `POST /api/chat` — AI assistant (LangGraph)
 
 ## 🔐 Security
 
-See [SECURITY.md](SECURITY.md) for security documentation including:
+Security measures implemented:
 
-- Authentication and session management
-- Password hashing with bcrypt
-- Input validation and sanitization
-- Environment variable security
-- Rate limiting recommendations
+- **JWT Authentication**: All protected routes require Bearer tokens
+- **Password Hashing**: bcrypt with cost factor 12
+- **Input Sanitization**: HTML escaping in all agent tools
+- **Startup Validation**: Missing `JWT_SECRET_KEY` raises error at startup
+- **File Validation**: Type and size checks for visitor photo uploads
+- **Rate Limiting**: Recommended via NGINX or a FastAPI middleware
 
-## 🗄️ Database Migrations
+## 🗄️ Database
 
-See [DATABASE_MIGRATIONS.md](DATABASE_MIGRATIONS.md) for:
+The system uses two SQLite databases:
+- **`receptionist.db`**: Operational DB (users, doctors, appointments, visitors)
+- **`receptionist_star.db`**: Analytics DB using Star Schema
 
-- Migration strategy
-- Alembic setup instructions
-- Manual SQL migrations
-- Schema change procedures
+For production: Migrate to PostgreSQL and use Alembic for migrations.
 
 ## 📈 Code Quality
 
-- **50+ Issues Fixed**: Comprehensive code review and fixes
+- **80+ Issues Fixed**: Comprehensive code review across multiple audit cycles
 - **Type Hints**: Full type annotation coverage
 - **Docstrings**: Google-style documentation
 - **Logging**: Centralized logging configuration
@@ -354,7 +359,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - LangChain team for the amazing framework
 - Groq for fast LLM inference
-- Streamlit for the intuitive web framework
+- The React and Vite communities
 - All contributors and testers
 
 ## 📞 Support
@@ -401,10 +406,10 @@ For support, email manojkumar@example.com or open an issue on GitHub.
 
 ## 📊 Project Stats
 
-- **Total Issues Fixed**: 59/59 (100%)
+- **Total Issues Fixed**: 80+ across multiple audit cycles
 - **Code Coverage**: 75%+
 - **Lines of Code**: 5000+
-- **Files**: 30+
+- **Files**: 35+
 - **Commits**: 100+
 
 ## 🌟 Star History
@@ -415,7 +420,7 @@ If you find this project useful, please consider giving it a star ⭐
 
 **Made with ❤️ by Manoj Kumar**
 
-_Last Updated: March 2026_
+_Last Updated: April 2026_
 
 
 
@@ -433,10 +438,10 @@ The system is built on a LangGraph agent rather than a traditional REST API. Key
 - `register_visitor`: Checks in visitors with optional photo capture.
 
 ### 🔐 Security & Authentication
-- **Authentication Flow**: Managed by Streamlit session state context passed securely to the tools.
+- **Authentication Flow**: Managed via JWT tokens. The React frontend stores the token in `localStorage`, attaches it to every request via an Axios interceptor, and the `AuthContext` handles session persistence, token expiry, and redirects.
 - **Passwords**: Hashed via bcrypt (12 rounds).
 - **Validation**: Strict input validation on formats (emails, constraints, maximum 5MB image sizes).
-- **Environment**: Critical secrets (`GROQ_API_KEY`) are enforced immediately at startup.
+- **Environment**: Critical secrets (`GROQ_API_KEY`, `JWT_SECRET_KEY`) are enforced immediately at startup.
 
 ### 🗄️ Database Strategy & Schema
 - **Operational DB**: Tables include `users`, `doctors`, `appointments`, `visitors`, `disease_specialties`. Managed by SQLAlchemy. App employs a soft delete approach (`is_deleted` flag).

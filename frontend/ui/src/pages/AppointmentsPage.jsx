@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Stethoscope, Loader2, AlertCircle, X, QrCode } from 'lucide-react';
+import { Calendar, Clock, Stethoscope, Loader2, AlertCircle, X, QrCode, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 const statusColors = {
@@ -14,6 +15,11 @@ const AppointmentsPage = () => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  const BACKEND_URL = import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace('/api', '')
+    : 'http://127.0.0.1:8000';
 
   useEffect(() => {
     fetchAppointments();
@@ -78,7 +84,17 @@ const AppointmentsPage = () => {
     <div className="h-full flex flex-col overflow-hidden">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-white">My Appointments</h2>
-        <span className="text-white/40 text-sm">{appointments.length} total</span>
+        <div className="flex items-center gap-3">
+          <span className="text-white/40 text-sm">{appointments.length} total</span>
+          {/* BUG-13 FIX: Book new appointment button */}
+          <button
+            onClick={() => navigate('/appointments/new')}
+            className="flex items-center gap-2 btn-primary text-sm py-2 px-4"
+          >
+            <Plus className="w-4 h-4" />
+            Book New
+          </button>
+        </div>
       </div>
 
       {appointments.length === 0 ? (
@@ -125,9 +141,16 @@ const AppointmentsPage = () => {
                     </span>
                     {apt.status === 'Scheduled' && (
                       <div className="flex gap-2">
-                        <button className="p-1.5 text-white/40 hover:text-white transition-colors">
-                          <QrCode className="w-4 h-4" />
-                        </button>
+                        {/* BUG-12 FIX: QR code button now opens the QR image */}
+                        {apt.qr_code_path && (
+                          <button
+                            onClick={() => window.open(`${BACKEND_URL}${apt.qr_code_path}`, '_blank')}
+                            className="p-1.5 text-white/40 hover:text-white transition-colors"
+                            title="View QR Code"
+                          >
+                            <QrCode className="w-4 h-4" />
+                          </button>
+                        )}
                         <button onClick={() => cancelAppointment(apt.id)} className="p-1.5 text-red-400/60 hover:text-red-400 transition-colors">
                           <X className="w-4 h-4" />
                         </button>

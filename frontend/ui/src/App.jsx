@@ -8,12 +8,15 @@ import DashboardLayout from './layouts/DashboardLayout';
 import AiAssistantPage from './pages/AiAssistantPage';
 import AppointmentsPage from './pages/AppointmentsPage';
 import VisitorCheckInPage from './pages/VisitorCheckInPage';
+import AppointmentBookingPage from './pages/AppointmentBookingPage';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
+    // BUG-04 FIX: Router must wrap AuthProvider because AuthProvider uses
+    // useNavigate(), which requires a parent <Router> context.
+    <Router>
+      <AuthProvider>
         <div className="relative w-screen h-screen overflow-hidden bg-darker text-white font-sans">
           {/* The 3D Background */}
           <ThreeBackground />
@@ -25,10 +28,11 @@ function App() {
                 {/* Public Routes */}
                 <Route path="/login" element={<LoginPage />} />
                 
-                {/* Protected Dashboard Layout */}
+                {/* Protected Dashboard Layout — DashboardLayout handles auth guard */}
                 <Route element={<DashboardLayout />}>
                   <Route path="/dashboard" element={<AiAssistantPage />} />
                   <Route path="/appointments" element={<AppointmentsPage />} />
+                  <Route path="/appointments/new" element={<AppointmentBookingPage />} />
                   <Route path="/check-in" element={<VisitorCheckInPage />} />
                 </Route>
 
@@ -38,8 +42,8 @@ function App() {
             </AnimatePresence>
           </div>
         </div>
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

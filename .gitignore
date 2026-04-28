@@ -170,15 +170,13 @@ receptionist.db
 # JSON backup files
 *.backup
 
-# Application data
+# Application data (exclude auto-generated CSV exports, keep sample data)
 data/*.json.backup
 data/*.json
-*.json
-!package.json
-!tsconfig.json
-# Avoid tracking test data generation scripts
-populate_*.py
-migrate_*.py
-test_*.py
-scripts/
-PROJECT_STRUCTURE.md
+!data/appointment_data_sample.csv
+
+# BUG-20 FIX: Removed these overly broad exclusions that were breaking the repo:
+#   populate_*.py, migrate_*.py, test_*.py, scripts/
+# These are essential project files and MUST be tracked in version control.
+# If specific generated files need ignoring, use precise paths:
+# backend/scripts/generated_output.csv

@@ -16,6 +16,7 @@ load_dotenv()
 # Ensure the backend directory is on the path so absolute imports work
 sys.path.insert(0, os.path.dirname(__file__))
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -30,6 +31,21 @@ from api.routes.availability_routes import router as availability_router
 from api.routes.chat_routes import router as chat_router
 from config import IMAGES_DIR
 
+# ── Lifespan (replaces deprecated @app.on_event) ──────────────────────────────
+# BUG-02 FIX: @app.on_event("startup") is deprecated in FastAPI ≥ 0.111.0.
+# The modern approach is the lifespan async context manager.
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize databases and seed with default data on startup."""
+    init_db()
+    init_star_db()
+    from scripts.seed_main import seed_if_empty
+    seed_if_empty()
+    yield
+    # Shutdown logic (if needed) goes here
+
+
 # ── Application setup ─────────────────────────────────────────────────────────
 
 app = FastAPI(
@@ -43,6 +59,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
@@ -75,17 +92,6 @@ app.include_router(doctor_router)
 app.include_router(visitor_router)
 app.include_router(availability_router)
 app.include_router(chat_router)
-
-# ── Startup / Shutdown events ─────────────────────────────────────────────────
-
-@app.on_event("startup")
-def startup_event():
-    """Initialize databases and seed with default data on startup."""
-    init_db()
-    init_star_db()
-    # Seed the main DB with doctors & disease-specialty mappings if empty
-    from scripts.seed_main import seed_if_empty
-    seed_if_empty()
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

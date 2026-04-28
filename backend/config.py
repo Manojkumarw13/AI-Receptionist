@@ -28,17 +28,10 @@ ALLOWED_IMAGE_TYPES = {
     'image/gif': b'GIF89a',
 }
 
-# Database settings
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///receptionist_star.db")
-# Using the single database for everything
-STAR_DATABASE_URL = DATABASE_URL
-
-# Connection pooling settings (FIXED Issue #29)
-# FIX BUG-N22: These constants are defined for future use.
-# They are currently UNUSED because NullPool (database/connection.py) ignores
-# pool size settings.  If the project switches to QueuePool (e.g. for
-# production PostgreSQL), restore them via:
-#   engine = create_engine(DATABASE_URL, pool_size=DB_POOL_SIZE, ...)
+# Connection pooling settings (for future QueuePool use with PostgreSQL)
+# BUG-06 FIX: Removed conflicting DATABASE_URL / STAR_DATABASE_URL from config.py.
+# The single source of truth for DB paths is database/connection.py.
+# These pool constants are kept for future use when switching from NullPool.
 DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
 DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
 DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))

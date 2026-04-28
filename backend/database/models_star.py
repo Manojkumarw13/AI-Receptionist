@@ -4,11 +4,12 @@ Dimensional modeling with fact and dimension tables for analytics
 """
 
 from sqlalchemy import Column, Integer, String, DateTime, Date, Time, Boolean, ForeignKey, Float, Index
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import DeclarativeBase, relationship
+from datetime import datetime, timezone
 
-Base = declarative_base()
+# BUG-09 FIX: Use modern DeclarativeBase instead of deprecated declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 
 # ==================== DIMENSION TABLES ====================
@@ -99,7 +100,9 @@ class DimUser(Base):
     pincode = Column(String(10), nullable=True)
     emergency_contact = Column(String(20), nullable=True)
     last_login = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    # BUG-08+14 FIX: Use lambda with timezone.utc instead of func.now() (SQL expression)
+    # which can be evaluated at class-definition time in some SQLAlchemy versions.
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     is_active = Column(Boolean, default=True)
     
     def __repr__(self):
@@ -165,9 +168,9 @@ class FactAppointment(Base):
     consultation_fee = Column(Float, nullable=True)
     payment_status = Column(String(50), default='Pending')  # Pending/Paid/Refunded
     
-    # Timestamps
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    # BUG-08+14 FIX: Use lambda with timezone.utc instead of func.now()
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime, nullable=True)
     
     # Additional attributes
@@ -210,7 +213,8 @@ class FactVisitorCheckIn(Base):
     duration_minutes = Column(Integer, nullable=True)
     
     # Timestamps
-    checkin_time = Column(DateTime, default=func.now(), nullable=False)
+    # BUG-08+14 FIX: Use lambda with timezone.utc instead of func.now()
+    checkin_time = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     
     # Additional attributes
     image_path = Column(String(500), nullable=True)

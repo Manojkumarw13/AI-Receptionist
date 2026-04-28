@@ -285,8 +285,9 @@ def register_visitor(name: str, purpose: str, company: str = None, image_data: b
         purpose = sanitize_input(purpose)
         company = sanitize_input(company) if company else None
         
-        check_in_time = datetime.datetime.now()
-        image_path = None  # Initialize image_path to None
+        # BUG-10 FIX: Use timezone-aware now() for consistency, strip tzinfo
+        # before storing (SQLite stores naive datetimes).
+        check_in_time = now_with_timezone().replace(tzinfo=None)
         
         # Save image if provided
         if image_data:
@@ -560,7 +561,8 @@ def cancel_appointment(appointment_year: int, appointment_month: int, appointmen
         appointment = session.query(Appointment).filter(
             and_(
                 Appointment.appointment_time == time_naive,
-                Appointment.user_email == user_email
+                Appointment.user_email == user_email,
+                Appointment.is_deleted == False  # BUG-11 FIX: Only cancel active appointments
             )
         ).first()
         

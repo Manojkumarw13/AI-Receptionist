@@ -7,9 +7,17 @@ import logging
 import sys
 from pathlib import Path
 
-# Create logs directory if it doesn't exist
-LOGS_DIR = Path("logs")
-LOGS_DIR.mkdir(exist_ok=True)
+# BUG-17 FIX: Import LOGS_DIR from config.py so both config and logging_config
+# agree on the log directory. Previously, logging_config.py used Path("logs")
+# (relative to CWD) while config.py used BASE_DIR / "logs" (absolute), causing
+# logs to be written to different directories depending on launch directory.
+try:
+    from config import LOGS_DIR
+except ImportError:
+    # Fallback if running standalone (e.g., during tests)
+    LOGS_DIR = Path(__file__).parent.parent / "logs"
+
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 def setup_logging(name: str = "ai_receptionist", level: int = logging.INFO) -> logging.Logger:
     """

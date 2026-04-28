@@ -6,13 +6,13 @@ Supports both original schema and star schema for analytics.
 import os
 from datetime import datetime, date, time as time_type
 from sqlalchemy import create_engine, func
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.pool import NullPool  # FIX BUG-33: NullPool is safer than StaticPool for multi-user Streamlit apps
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool  # FIX BUG-33: NullPool is safer than StaticPool for multi-user apps
 from database.models_star import Base as StarBase  # Using Star Schema models for all operations
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# BUG-16 FIX: Use module-level logger instead of basicConfig() which overrides
+# the centralized logging configuration from utils/logging_config.py.
 logger = logging.getLogger(__name__)
 
 # Database setup
@@ -45,10 +45,9 @@ star_engine = create_engine(
 # Create session factories
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 StarSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=star_engine)
-
-# Thread-safe sessions
-Session = scoped_session(SessionLocal)
-StarSession = scoped_session(StarSessionLocal)
+# BUG-18 FIX: scoped_session wrappers removed — FastAPI uses per-request sessions
+# via dependency injection (get_db()), making scoped_session unnecessary and
+# inconsistent with auth.py which uses SessionLocal() directly.
 
 
 def init_db():
@@ -77,12 +76,12 @@ def init_star_db():
 
 def get_session():
     """Get a session for the original database."""
-    return Session()
+    return SessionLocal()
 
 
 def get_star_session():
     """Get a session for the star schema database."""
-    return StarSession()
+    return StarSessionLocal()
 
 
 def close_session(session):
@@ -104,14 +103,15 @@ def check_star_db_exists():
 
 
 def get_db_stats():
-    """Get statistics about the single star schema database."""
+    """Get statistics about the star schema database."""
     try:
         from database.models_star import (
             DimDate, DimTime, DimDoctor, DimUser, DimDisease, DimVisitor,
             FactAppointment, FactVisitorCheckIn
         )
-        
-        session = get_session()
+        # BUG-07 FIX: Must use get_star_session() — star schema tables only
+        # exist in receptionist_star.db, not in the operational receptionist.db.
+        session = get_star_session()
         try:
             stats = {
                 'dim_date': session.query(DimDate).count(),
@@ -219,7 +219,9 @@ def get_or_create_time_dimension(session, target_time):
         else:
             period = "Night"
         
-        is_business_hours = 9 <= hour < 18
+        # BUG-19 FIX: Use WORKING_HOURS config constants to match booking system
+        from config import WORKING_HOURS_START, WORKING_HOURS_END
+        is_business_hours = WORKING_HOURS_START <= hour < WORKING_HOURS_END
         
         dim_time = DimTime(
             time_value=target_time,

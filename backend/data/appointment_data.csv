@@ -1,0 +1,58 @@
+doctor_specialty,disease,appointment_date,appointment_hour,day_of_week,month,is_available
+Cardiology,Hypertension,2024-01-15,9,0,1,1
+Cardiology,Hypertension,2024-01-15,10,0,1,1
+Cardiology,Hypertension,2024-01-15,11,0,1,0
+Cardiology,Coronary Artery Disease,2024-01-16,9,1,1,1
+Cardiology,Coronary Artery Disease,2024-01-16,14,1,1,1
+Cardiology,Arrhythmia,2024-01-17,10,2,1,1
+Cardiology,Arrhythmia,2024-01-17,15,2,1,0
+Cardiology,Heart Failure,2024-01-18,9,3,1,1
+Cardiology,Heart Failure,2024-01-18,11,3,1,1
+Neurology,Migraine,2024-01-15,9,0,1,1
+Neurology,Migraine,2024-01-15,10,0,1,0
+Neurology,Epilepsy,2024-01-16,14,1,1,1
+Neurology,Stroke,2024-01-17,9,2,1,1
+Neurology,Stroke,2024-01-17,16,2,1,0
+Pediatrics,Chickenpox,2024-01-15,9,0,1,1
+Pediatrics,Measles,2024-01-16,10,1,1,1
+Pediatrics,Asthma,2024-01-17,11,2,1,0
+Pediatrics,Asthma,2024-01-17,14,2,1,1
+Orthopedics,Arthritis,2024-01-15,9,0,1,1
+Orthopedics,Fracture,2024-01-16,10,1,1,0
+Orthopedics,Osteoporosis,2024-01-17,14,2,1,1
+Dermatology,Eczema,2024-01-15,9,0,1,1
+Dermatology,Psoriasis,2024-01-16,10,1,1,1
+Dermatology,Acne,2024-01-17,11,2,1,0
+Gynecology,PCOS,2024-01-15,9,0,1,1
+Gynecology,Endometriosis,2024-01-16,14,1,1,0
+ENT,Sinusitis,2024-01-15,9,0,1,1
+ENT,Hearing Loss,2024-01-16,10,1,1,1
+ENT,Vertigo,2024-01-17,11,2,1,0
+Ophthalmology,Cataract,2024-01-15,9,0,1,1
+Ophthalmology,Glaucoma,2024-01-16,14,1,1,1
+General Medicine,Diabetes,2024-01-15,9,0,1,1
+General Medicine,Diabetes,2024-01-15,10,0,1,0
+General Medicine,Fever,2024-01-16,9,1,1,1
+General Medicine,Anemia,2024-01-17,10,2,1,1
+Psychiatry,Depression,2024-01-15,10,0,1,1
+Psychiatry,Anxiety,2024-01-16,14,1,1,0
+Gastroenterology,GERD,2024-01-15,9,0,1,1
+Gastroenterology,IBS,2024-01-16,10,1,1,1
+Pulmonology,Bronchitis,2024-01-15,9,0,1,1
+Pulmonology,Pneumonia,2024-01-16,14,1,1,0
+Endocrinology,Diabetes Type 1,2024-01-15,9,0,1,1
+Urology,Kidney Stones,2024-01-16,10,1,1,1
+Oncology,Breast Cancer,2024-01-15,9,0,1,1
+Oncology,Lung Cancer,2024-01-16,14,1,1,1
+Cardiology,Hypertension,2024-02-05,9,0,2,1
+Cardiology,Hypertension,2024-02-05,14,0,2,0
+Neurology,Migraine,2024-02-06,10,1,2,1
+Pediatrics,Asthma,2024-02-07,11,2,2,1
+General Medicine,Fever,2024-02-08,9,3,2,0
+General Medicine,Diabetes,2024-02-09,14,4,2,1
+Cardiology,Heart Failure,2024-03-04,9,0,3,1
+Neurology,Epilepsy,2024-03-05,10,1,3,0
+Orthopedics,Arthritis,2024-03-06,11,2,3,1
+Dermatology,Eczema,2024-03-07,9,3,3,1
+Psychiatry,Depression,2024-03-08,14,4,3,1
+General Medicine,Thyroid Disorder,2024-03-11,9,0,3,1

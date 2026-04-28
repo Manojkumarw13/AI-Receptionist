@@ -3,13 +3,13 @@ Database models for AI Receptionist application.
 Defines SQLAlchemy ORM models for all entities.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Index, Boolean  # FIXED: Added Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship  # FIXED Issue #34: Added relationship
-from sqlalchemy.sql import func
-from datetime import datetime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Index, Boolean
+from sqlalchemy.orm import DeclarativeBase, relationship
+from datetime import datetime, timezone
 
-Base = declarative_base()
+# BUG-09 FIX: Use modern DeclarativeBase instead of deprecated declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 
 class User(Base):
@@ -22,9 +22,9 @@ class User(Base):
     name = Column(String(255), nullable=True)  # User's full name
     role = Column(String(20), default="user", nullable=False)  # user, admin, doctor
     is_active = Column(Boolean, default=True, nullable=False)  # Account active status
-    # FIX BUG-32: Use datetime.utcnow (Python callable) not func.now() (SQL expression)
-    # func.now() can be evaluated at class-definition time in some SQLAlchemy versions.
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    # BUG-08 FIX: Use lambda with timezone.utc instead of deprecated datetime.utcnow.
+    # datetime.utcnow is deprecated in Python 3.12+ and removed in 3.14.
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     last_login = Column(DateTime, nullable=True)  # Track last login time
     
     def __repr__(self):
@@ -60,9 +60,9 @@ class Appointment(Base):
     status = Column(String(50), default='Scheduled', nullable=False)  # FIXED Issue #36: Added status field
     is_deleted = Column(Boolean, default=False, nullable=False)  # FIXED Issue #33: Soft delete support
     qr_code_path = Column(String(500), nullable=True)  # FIXED Issue #35: Track QR codes
-    # FIX BUG-32: Use datetime.utcnow (Python callable) not func.now() (SQL expression)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Track updates
+    # BUG-08 FIX: Use lambda with timezone.utc instead of deprecated datetime.utcnow.
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Create composite index for faster user-based and time-based queries
     # FIXED Issue #18: Added standalone time index for better performance
@@ -97,8 +97,8 @@ class Visitor(Base):
     name = Column(String(255), nullable=False)
     purpose = Column(String(500), nullable=False)
     company = Column(String(255), nullable=True)
-    # FIX BUG-32: Use datetime.utcnow (Python callable) not func.now() (SQL expression)
-    check_in_time = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    # BUG-08 FIX: Use lambda with timezone.utc instead of deprecated datetime.utcnow.
+    check_in_time = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     image_path = Column(String(500), nullable=True)
     
     def __repr__(self):
