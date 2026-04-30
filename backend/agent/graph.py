@@ -5,7 +5,7 @@ import datetime
 import time  # FIX BUG-23: for retry backoff
 from .tools import (
     check_availability_ml, book_appointment, cancel_appointment,
-    get_next_available_appointment, generate_qr_code, register_visitor
+    get_next_available_appointment, register_visitor
 )
 from database.models import Doctor, DiseaseSpecialty
 from database.connection import get_session
@@ -30,7 +30,7 @@ os.environ["GROQ_API_KEY"] = _groq_api_key
 
 # FIX BUG-34: Make model name configurable via env var so it can be changed
 # without code edits if Groq deprecates the current model.
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama3-70b-8192")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 llm = ChatGroq(model=GROQ_MODEL, temperature=0.5)
 
 
@@ -87,12 +87,12 @@ def call_caller_model(state: MessagesState):
                 raise  # Re-raise after all retries exhausted
 
 # List of tools for managing appointments
+# Bug B FIX: generate_qr_code removed — it's a plain helper function, not an agent tool.
 caller_tools = [
     book_appointment, 
     get_next_available_appointment, 
     cancel_appointment,
     check_availability_ml,
-    generate_qr_code,
     register_visitor
 ]
 tool_node = ToolNode(caller_tools)

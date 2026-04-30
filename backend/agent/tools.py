@@ -198,7 +198,6 @@ def check_availability_ml(date_str: str, time_str: str, duration: int = 30):
     return f"Availability Status: {'Optimal' if available else 'High Risk'}. Details: {message}"
 
 
-@tool
 def generate_qr_code(appointment_details: str, filepath: str = None):
     """Generates a QR code for the appointment details.
     
@@ -264,14 +263,12 @@ def validate_image_file(image_data: bytes) -> tuple[bool, str]:
     return False, "Invalid image format. Only JPEG, PNG, and GIF are allowed"
 
 
-@tool
-def register_visitor(name: str, purpose: str, company: str = None, image_data: bytes = None):
+def _register_visitor_impl(name: str, purpose: str, company: str = None, image_data: bytes = None):
     """
-    Registers a visitor and logs their entry.
-    
-    FIXED Issue #59: Added input sanitization
-    FIXED Issue #57: Added comprehensive logging
-    
+    Internal implementation: Registers a visitor and logs their entry.
+    Called directly by the API route (with optional image_data) and by the
+    @tool wrapper below (text-only).
+
     Args:
         name: Name of visitor
         purpose: Purpose of visit
@@ -288,6 +285,7 @@ def register_visitor(name: str, purpose: str, company: str = None, image_data: b
         # BUG-10 FIX: Use timezone-aware now() for consistency, strip tzinfo
         # before storing (SQLite stores naive datetimes).
         check_in_time = now_with_timezone().replace(tzinfo=None)
+        image_path = None  # Bug C FIX: Initialize to avoid UnboundLocalError when no image
         
         # Save image if provided
         if image_data:
@@ -339,6 +337,21 @@ def register_visitor(name: str, purpose: str, company: str = None, image_data: b
         return f"Failed to register visitor: {e}"
     finally:
         session.close()
+
+
+@tool
+def register_visitor(name: str, purpose: str, company: str = ""):
+    """Registers a visitor and logs their entry.
+    
+    Args:
+        name: Name of visitor
+        purpose: Purpose of visit
+        company: Company they represent (optional, defaults to empty string)
+    """
+    # Thin wrapper for the LangGraph agent — delegates to the real implementation.
+    # The agent never passes image_data (it can't serialize bytes), so we omit it.
+    return _register_visitor_impl(name, purpose, company or None, None)
+
 
 
 # Tool to book an appointment

@@ -6,9 +6,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  // Bug C FIX: Do NOT hardcode Content-Type. Axios auto-sets it correctly:
+  //   - JSON bodies -> application/json
+  //   - FormData bodies -> multipart/form-data; boundary=<hash>
+  // The old hardcoded 'Content-Type': 'application/json' stripped the
+  // FormData boundary, causing FastAPI to return 422 on visitor check-in.
 });
 
 // Fix #6: Global request interceptor — inject JWT token on every request.
